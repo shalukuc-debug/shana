@@ -175,7 +175,7 @@
             <div class="flex flex-col space-y-4">
                 <input id="userName" type="text" placeholder="你的稱呼" class="px-5 py-3 rounded-full border border-pink-100 outline-none">
                 <textarea id="userMsg" rows="3" placeholder="想對向晴說什麼？" class="px-5 py-3 rounded-3xl border border-pink-100 outline-none"></textarea>
-                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg">送出留言</button>
+                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg transition">送出留言</button>
             </div>
         </div>
     </section>
@@ -235,11 +235,17 @@
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
-                onAuthStateChanged(auth, (u) => { if (u) { user = u; syncPhotos(); syncMessages(); } });
-            } catch (e) { console.error(e); }
+                onAuthStateChanged(auth, (u) => { 
+                    user = u; 
+                    if (user) { 
+                        syncPhotos(); 
+                        syncMessages(); 
+                    } 
+                });
+            } catch (e) { console.error("Firebase Auth Error", e); }
         }
 
-        // --- 登入邏輯修正：確保獨立運作且即時反應 ---
+        // --- 登入邏輯 ---
         function performLogin() {
             const pwd = document.getElementById('passwordInput').value;
             if (pwd === "1234") {
@@ -257,7 +263,6 @@
             }
         }
 
-        // 綁定點擊事件與 Enter 鍵
         document.getElementById('loginConfirmBtn').onclick = performLogin;
         document.getElementById('passwordInput').onkeypress = (e) => { if (e.key === 'Enter') performLogin(); };
 
@@ -338,6 +343,12 @@
             const newData = { ...currentPhotoData };
             newData[`${type}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
             
+            // 安全檢查：確保身分驗證完成
+            if (!auth.currentUser) {
+                showToast("尚未連線到雲端，請稍後再試。");
+                return;
+            }
+
             try {
                 await setDoc(configRef, newData);
                 document.body.classList.remove('is-adjusting');
@@ -345,7 +356,10 @@
                 document.querySelectorAll('.adjust-highlight').forEach(el => el.classList.add('hidden'));
                 document.getElementById('adjustToolbar').classList.add('hidden');
                 showToast("位置已儲存至雲端！✨");
-            } catch (e) { showToast("儲存失敗"); }
+            } catch (e) { 
+                console.error("Save Style Error", e);
+                showToast("同步失敗，請重新整理網頁再試。"); 
+            }
         };
 
         function renderPhotos(data) {
@@ -364,29 +378,37 @@
                 }
             };
 
-            document.getElementById('img_hero').src = formatPath(finalData.hero);
-            applyStyle('img_hero', finalData.heroStyle);
+            const hImg = document.getElementById('img_hero');
+            if (hImg) {
+                hImg.src = formatPath(finalData.hero);
+                applyStyle('img_hero', finalData.heroStyle);
+            }
 
-            document.getElementById('img_about').src = formatPath(finalData.about);
-            applyStyle('img_about', finalData.aboutStyle);
+            const aImg = document.getElementById('img_about');
+            if (aImg) {
+                aImg.src = formatPath(finalData.about);
+                applyStyle('img_about', finalData.aboutStyle);
+            }
 
             const grid = document.getElementById('gallery_grid');
-            const uniqueGallery = [...new Set(finalData.gallery || [])];
-            grid.innerHTML = uniqueGallery.map((name, idx) => `
-                <div class="gallery-item aspect-square shadow-sm photo-container relative">
-                    <img src="${formatPath(name)}" class="w-full h-full object-cover" draggable="false"
-                         onerror="this.src='https://via.placeholder.com/400x400/ffb7c5/ffffff?text=Wait+Upload'">
-                    <div class="photo-edit-overlay flex-col gap-2" onclick="triggerFilePicker('gallery_${idx}')">
-                        <i data-lucide="refresh-cw" class="w-6 h-6"></i>
-                        <span class="text-xs font-bold">更換</span>
-                        ${isAdmin ? `<button onclick="event.stopPropagation(); deleteGalleryItem('${name}')" class="mt-4 bg-red-500/80 px-3 py-1 rounded-full text-[10px]">刪除</button>` : ''}
+            if (grid) {
+                const uniqueGallery = [...new Set(finalData.gallery || [])];
+                grid.innerHTML = uniqueGallery.map((name, idx) => `
+                    <div class="gallery-item aspect-square shadow-sm photo-container relative">
+                        <img src="${formatPath(name)}" class="w-full h-full object-cover" draggable="false"
+                             onerror="this.src='https://via.placeholder.com/400x400/ffb7c5/ffffff?text=Wait+Upload'">
+                        <div class="photo-edit-overlay flex-col gap-2" onclick="triggerFilePicker('gallery_${idx}')">
+                            <i data-lucide="refresh-cw" class="w-6 h-6"></i>
+                            <span class="text-xs font-bold">更換</span>
+                            ${isAdmin ? `<button onclick="event.stopPropagation(); deleteGalleryItem('${name}')" class="mt-4 bg-red-500/80 px-3 py-1 rounded-full text-[10px]">刪除</button>` : ''}
+                        </div>
                     </div>
-                </div>
-            `).join('');
-            lucide.createIcons();
+                `).join('');
+                lucide.createIcons();
+            }
         }
 
-        function syncPhotos() { onSnapshot(configRef, (snap) => renderPhotos(snap.exists() ? snap.data() : null)); }
+        function syncPhotos() { if (configRef) onSnapshot(configRef, (snap) => renderPhotos(snap.exists() ? snap.data() : null)); }
 
         window.triggerFilePicker = (target) => {
             if (!isAdmin) return;
@@ -397,6 +419,13 @@
         document.getElementById('filePicker').onchange = async (e) => {
             const files = e.target.files;
             if (!files.length || !currentPhotoData) return;
+
+            // 安全檢查
+            if (!auth.currentUser) {
+                showToast("尚未連線到雲端，請稍後再試。");
+                return;
+            }
+
             const newData = { ...currentPhotoData };
             const target = window.currentEditingTarget;
             if (target === 'hero') newData.hero = files[0].name;
@@ -408,42 +437,59 @@
                 const idx = parseInt(target.split('_')[1]);
                 newData.gallery[idx] = files[0].name;
             }
-            try { await setDoc(configRef, newData); showToast(`照片已更新！✨`); } catch (err) { alert("同步失敗"); }
+            
+            try { 
+                await setDoc(configRef, newData); 
+                showToast(`照片已更新！✨`); 
+            } catch (err) { 
+                console.error("Update Photo Error", err);
+                showToast("同步失敗，請檢查網路。"); 
+            }
             e.target.value = ''; 
         };
 
         window.deleteGalleryItem = async (fileName) => {
-            if (!confirm("確定要刪除嗎？")) return;
+            if (!confirm("確定要刪除嗎？") || !auth.currentUser) return;
             const newData = { ...currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
-            await setDoc(configRef, newData);
+            try {
+                await setDoc(configRef, newData);
+                showToast("照片已移除。");
+            } catch (err) { showToast("刪除失敗"); }
         };
 
         function syncMessages() {
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snap) => {
-                const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
-                const msgs = []; snap.forEach(d => msgs.push(d.data()));
-                msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                document.getElementById('messageBox').innerHTML = msgs.map(m => `
-                    <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300">
-                        <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
-                    </div>
-                `).join('') || '<div class="text-center text-gray-400 py-4">目前尚無悄悄話</div>';
-            });
+            if (db) {
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snap) => {
+                    const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
+                    const msgs = []; snap.forEach(d => msgs.push(d.data()));
+                    msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                    const box = document.getElementById('messageBox');
+                    if (box) box.innerHTML = msgs.map(m => `
+                        <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300">
+                            <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
+                        </div>
+                    `).join('') || '<div class="text-center text-gray-400 py-4">目前尚無悄悄話</div>';
+                });
+            }
         }
 
         document.getElementById('sendBtn').onclick = async () => {
             const n = document.getElementById('userName').value, c = document.getElementById('userMsg').value;
-            if (!n || !c) return;
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), { name: n, content: c, createdAt: serverTimestamp() });
-            document.getElementById('userName').value = ''; document.getElementById('userMsg').value = '';
-            createHearts();
+            if (!n || !c || !auth.currentUser) return;
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), { name: n, content: c, createdAt: serverTimestamp() });
+                document.getElementById('userName').value = ''; document.getElementById('userMsg').value = '';
+                createHearts();
+            } catch (e) { showToast("留言失敗"); }
         };
 
         const showToast = (msg) => {
             const t = document.getElementById('toast');
-            t.innerText = msg; t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
+            if (t) {
+                t.innerText = msg; t.classList.add('show');
+                setTimeout(() => t.classList.remove('show'), 3000);
+            }
         };
         lucide.createIcons();
     </script>
