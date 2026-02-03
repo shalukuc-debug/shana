@@ -85,7 +85,7 @@
             <input type="range" id="scaleSlider" min="0.5" max="5" step="0.01" value="1" class="w-40 accent-pink-500">
         </div>
         <div class="h-8 w-[1px] bg-gray-200 mx-2"></div>
-        <button onclick="saveVisualTransform()" class="bg-pink-500 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-pink-600 transition">完成儲存</button>
+        <button id="saveTransformBtn" onclick="saveVisualTransform()" class="bg-pink-500 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-pink-600 transition">完成儲存</button>
     </div>
 
     <input type="file" id="filePicker" class="hidden" accept="image/*" multiple>
@@ -198,10 +198,8 @@
         function handleImgError(img) {
             img.style.display = 'none';
             const container = img.parentElement;
-            // 移除舊的提示
             const oldP = container.querySelector('.loading-placeholder');
             if (oldP) oldP.remove();
-            
             const p = document.createElement('div');
             p.className = 'loading-placeholder';
             p.innerText = '等待照片上傳 GitHub (或檢查檔名)';
@@ -222,17 +220,16 @@
         const formatPath = (p) => {
             if (!p) return "";
             if (p.startsWith('http') || p.startsWith('data:')) return p;
-            // 優先從 GitHub 抓圖（確保預覽與正式環境一致）
             return !window.location.hostname.includes('github.io') ? GITHUB_URL + p : p;
         };
 
-        // 預設資料：使用妳重新命名的數字檔名
+        // 更新後的預設資料：大頭照為 4.jpg，關於我為 20.jpg
         const defaultPhotos = {
-            hero: '20250206_153614.jpg', 
+            hero: '4.jpg', 
             heroStyle: { scale: 1, x: 0, y: 0 },
-            about: '20250104_193151.jpg', 
+            about: '20.jpg', 
             aboutStyle: { scale: 1, x: 0, y: 0 },
-            gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg']
+            gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg', '20.jpg']
         };
 
         // Firebase 初始化
@@ -344,7 +341,7 @@
         document.getElementById('filePicker').onchange = async (e) => {
             const files = Array.from(e.target.files);
             if (!files.length || !currentPhotoData) return;
-            if (!auth?.currentUser) { showToast("正在重新同步雲端，請稍後..."); return; }
+            if (!auth?.currentUser) { showToast("正在連線雲端中，請稍後..."); return; }
 
             const statusLabel = document.getElementById('uploadStatus');
             const batchBtn = document.getElementById('batchAddBtn');
@@ -352,7 +349,7 @@
 
             batchBtn.disabled = true;
             batchBtn.innerHTML = "同步中...";
-            statusLabel.innerText = `⏳ 正在新增 ${files.length} 張照片檔名...`;
+            statusLabel.innerText = `⏳ 正在寫入雲端...`;
 
             const newData = { ...currentPhotoData };
             const target = window.currentEditingTarget;
@@ -369,10 +366,10 @@
             
             try { 
                 await setDoc(configRef, newData); 
-                showToast(`已更新檔名！記得上傳實體圖片喔 ✨`); 
-                statusLabel.innerText = "✅ 檔名已更新！請務必將檔案傳至 GitHub。";
+                showToast(`檔名更新成功！記得上傳圖片喔 ✨`); 
+                statusLabel.innerText = "✅ 已存入雲端！請將檔案傳至 GitHub。";
             } catch (err) { 
-                showToast("同步失敗，請檢查網路。"); 
+                showToast("同步失敗，請確認網路環境。"); 
                 statusLabel.innerText = "❌ 同步失敗。";
             } finally {
                 batchBtn.disabled = false;
@@ -417,16 +414,25 @@
 
         window.saveVisualTransform = async () => {
             const type = adjustState.target;
+            const saveBtn = document.getElementById('saveTransformBtn');
+            const originalText = saveBtn.innerText;
+            
+            if (!auth?.currentUser) { showToast("未連線雲端"); return; }
+            
+            saveBtn.innerText = "儲存中...";
             const newData = { ...currentPhotoData };
             newData[`${type}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
+            
             try {
                 await setDoc(configRef, newData);
                 document.body.classList.remove('is-adjusting');
                 document.querySelectorAll('.adjust-mode').forEach(el => el.classList.remove('adjust-mode'));
                 document.querySelectorAll('.adjust-highlight').forEach(el => el.classList.add('hidden'));
                 document.getElementById('adjustToolbar').classList.add('hidden');
-                showToast("位置已儲存！✨");
-            } catch (e) { showToast("儲存失敗"); }
+                showToast("完美角度已同步！✨");
+            } catch (e) { showToast("儲存失敗，請再試一次"); } finally {
+                saveBtn.innerText = originalText;
+            }
         };
 
         window.deleteGalleryItem = async (fileName) => {
@@ -442,7 +448,8 @@
                 const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
                 const msgs = []; snap.forEach(d => msgs.push(d.data()));
                 msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                document.getElementById('messageBox').innerHTML = msgs.map(m => `
+                const box = document.getElementById('messageBox');
+                if (box) box.innerHTML = msgs.map(m => `
                     <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300 mb-3">
                         <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
                     </div>
