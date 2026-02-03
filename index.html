@@ -9,7 +9,7 @@
     <!-- 使用 Lucide 圖示 -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- 基礎 UI 腳本：放在 head 確保 onerror 觸發時函數已存在 -->
+    <!-- 基礎 UI 腳本：確保 onerror 觸發時函數已存在 -->
     <script>
         function openLogin() { 
             const modal = document.getElementById('loginModal');
@@ -54,7 +54,7 @@
         }
         body.is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; pointer-events: auto; }
         
-        /* 調整模式激活時：讓框框外變半透明，且不裁切 */
+        /* 調整模式激活時的特效 */
         body.is-adjusting .photo-edit-overlay { display: none !important; }
         body.is-adjusting .photo-container.adjust-mode { z-index: 100; }
         body.is-adjusting .adjust-mode .overflow-hidden { overflow: visible !important; }
@@ -253,7 +253,11 @@
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
-            } catch (e) { console.error("Auth Failed", e); }
+                return auth.currentUser;
+            } catch (e) { 
+                console.error("Auth Failed", e); 
+                return null;
+            }
         }
 
         onAuthStateChanged(auth, (u) => { 
@@ -261,7 +265,7 @@
                 document.getElementById('cloudStatus').innerText = "雲端同步已就緒 ✅";
                 syncPhotos(); syncMessages(); 
             } else {
-                document.getElementById('cloudStatus').innerText = "連線失敗，請重新整理 ❌";
+                document.getElementById('cloudStatus').innerText = "連線中... ⏳";
             }
         });
 
@@ -281,13 +285,10 @@
             };
 
             const hImg = document.getElementById('img_hero');
-            if (hImg) { 
-                hImg.style.display = 'block'; hImg.src = formatPath(currentPhotoData.hero); applyStyle('img_hero', currentPhotoData.heroStyle); 
-            }
+            if (hImg) { hImg.style.display = 'block'; hImg.src = formatPath(currentPhotoData.hero); applyStyle('img_hero', currentPhotoData.heroStyle); }
+            
             const aImg = document.getElementById('img_about');
-            if (aImg) { 
-                aImg.style.display = 'block'; aImg.src = formatPath(currentPhotoData.about); applyStyle('img_about', currentPhotoData.aboutStyle); 
-            }
+            if (aImg) { aImg.style.display = 'block'; aImg.src = formatPath(currentPhotoData.about); applyStyle('img_about', currentPhotoData.aboutStyle); }
 
             const grid = document.getElementById('gallery_grid');
             if (grid) {
@@ -309,15 +310,16 @@
         }
 
         function syncPhotos() { 
-            if (!auth.currentUser) return;
             onSnapshot(configRef, 
                 (snap) => { if(snap.exists()) renderPhotos(snap.data()); else renderPhotos(defaultPhotos); }, 
                 (err) => { console.error("Firestore Listen Permission Error:", err); }
             ); 
         }
 
-        window.performLogin = function() {
-            if (document.getElementById('passwordInput').value === "1234") {
+        // 管理員功能：直接定義在模組內並綁定
+        const performLogin = function() {
+            const pwdInput = document.getElementById('passwordInput');
+            if (pwdInput && pwdInput.value === "1234") {
                 isAdmin = true;
                 document.body.classList.add('is-admin');
                 const badge = document.getElementById('adminBadge');
@@ -330,14 +332,16 @@
                 if (addBtn) addBtn.classList.remove('hidden');
                 
                 closeLogin();
-                const t = document.getElementById('toast');
-                if (t) { t.innerText = "管理員已成功登入！✨"; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+                showToast("管理員已成功登入！✨");
                 renderPhotos(currentPhotoData);
             } else { alert("密碼錯誤"); }
         }
-
-        document.getElementById('loginConfirmBtn').onclick = window.performLogin;
-        document.getElementById('passwordInput').onkeypress = (e) => { if (e.key === 'Enter') window.performLogin(); };
+        
+        // 綁定按鈕與 Enter
+        const confirmBtn = document.getElementById('loginConfirmBtn');
+        if (confirmBtn) confirmBtn.onclick = performLogin;
+        const pwdInp = document.getElementById('passwordInput');
+        if (pwdInp) pwdInp.onkeypress = (e) => { if (e.key === 'Enter') performLogin(); };
 
         window.handleLogout = () => {
             isAdmin = false; 
@@ -349,6 +353,7 @@
             renderPhotos(currentPhotoData);
         };
 
+        // 核心寫入邏輯
         async function secureUpdate(data) {
             if (!auth.currentUser) await initAuth();
             if (auth.currentUser) {
@@ -364,46 +369,50 @@
         window.triggerFilePicker = (target) => {
             if (!isAdmin) return;
             window.currentEditingTarget = target;
-            document.getElementById('filePicker').click();
+            const fp = document.getElementById('filePicker');
+            if (fp) fp.click();
         };
 
-        document.getElementById('filePicker').onchange = async (e) => {
-            const files = Array.from(e.target.files);
-            if (!files.length || !currentPhotoData) return;
-            
-            const statusLabel = document.getElementById('uploadStatus');
-            const batchBtn = document.getElementById('batchAddBtn');
-            const originalBtnHtml = batchBtn.innerHTML;
+        const filePicker = document.getElementById('filePicker');
+        if (filePicker) {
+            filePicker.onchange = async (e) => {
+                const files = Array.from(e.target.files);
+                if (!files.length || !currentPhotoData) return;
+                
+                const statusLabel = document.getElementById('uploadStatus');
+                const batchBtn = document.getElementById('batchAddBtn');
+                const originalBtnHtml = batchBtn ? batchBtn.innerHTML : "";
 
-            batchBtn.disabled = true;
-            batchBtn.innerHTML = "同步中...";
-            statusLabel.innerText = `⏳ 正在新增 ${files.length} 張照片...`;
+                if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "同步中..."; }
+                if (statusLabel) statusLabel.innerText = `⏳ 正在將 ${files.length} 張照片存入雲端...`;
 
-            const newData = { ...currentPhotoData };
-            const target = window.currentEditingTarget;
+                const newData = { ...currentPhotoData };
+                const target = window.currentEditingTarget;
 
-            if (target === 'hero') newData.hero = files[0].name;
-            else if (target === 'about') newData.about = files[0].name;
-            else if (target === 'addGallery') {
-                const names = files.map(f => f.name);
-                newData.gallery = [...new Set([...(newData.gallery || []), ...names])];
-            } else if (target.startsWith('gallery_')) {
-                const idx = parseInt(target.split('_')[1]);
-                newData.gallery[idx] = files[0].name;
-            }
-            
-            try { 
-                await secureUpdate(newData); 
-                statusLabel.innerText = "✅ 雲端同步成功！";
-            } catch (err) { 
-                statusLabel.innerText = "❌ 連線失敗。";
-            } finally {
-                batchBtn.disabled = false;
-                batchBtn.innerHTML = originalBtnHtml;
-                e.target.value = ''; 
-            }
-        };
+                if (target === 'hero') newData.hero = files[0].name;
+                else if (target === 'about') newData.about = files[0].name;
+                else if (target === 'addGallery') {
+                    const names = files.map(f => f.name);
+                    newData.gallery = [...new Set([...(newData.gallery || []), ...names])];
+                } else if (target.startsWith('gallery_')) {
+                    const idx = parseInt(target.split('_')[1]);
+                    if (newData.gallery) newData.gallery[idx] = files[0].name;
+                }
+                
+                try { 
+                    await secureUpdate(newData); 
+                    showToast(`照片已更新！✨`); 
+                    if (statusLabel) statusLabel.innerText = "✅ 雲端同步成功！";
+                } catch (err) { 
+                    showToast("同步失敗，系統權限暫時不穩定。"); 
+                } finally {
+                    if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; }
+                    e.target.value = ''; 
+                }
+            };
+        }
 
+        // 調整位置邏輯
         let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
         window.enterAdjustMode = (type) => {
             adjustState.target = type;
@@ -414,21 +423,25 @@
             document.getElementById(`${type}_highlight`).classList.remove('hidden');
             document.getElementById('adjustToolbar').classList.remove('hidden');
             const slider = document.getElementById('scaleSlider');
-            slider.value = adjustState.scale;
-            slider.oninput = (ev) => { adjustState.scale = parseFloat(ev.target.value); updateTransform(); };
+            if (slider) {
+                slider.value = adjustState.scale;
+                slider.oninput = (ev) => { adjustState.scale = parseFloat(ev.target.value); updateTransform(); };
+            }
             const img = document.getElementById(`img_${type}`);
-            img.style.cursor = 'move';
-            img.onmousedown = (ev) => { 
-                adjustState.isDragging = true; 
-                adjustState.startX = ev.clientX - adjustState.currentX; adjustState.startY = ev.clientY - adjustState.currentY;
-                window.onmousemove = (mv) => { 
-                    if (!adjustState.isDragging) return;
-                    adjustState.currentX = mv.clientX - adjustState.startX; adjustState.currentY = mv.clientY - adjustState.startY;
-                    updateTransform();
+            if (img) {
+                img.style.cursor = 'move';
+                img.onmousedown = (ev) => { 
+                    adjustState.isDragging = true; 
+                    adjustState.startX = ev.clientX - adjustState.currentX; adjustState.startY = ev.clientY - adjustState.currentY;
+                    window.onmousemove = (mv) => { 
+                        if (!adjustState.isDragging) return;
+                        adjustState.currentX = mv.clientX - adjustState.startX; adjustState.currentY = mv.clientY - adjustState.startY;
+                        updateTransform();
+                    };
+                    window.onmouseup = () => { adjustState.isDragging = false; window.onmousemove = null; };
+                    ev.preventDefault();
                 };
-                window.onmouseup = () => { adjustState.isDragging = false; window.onmousemove = null; };
-                ev.preventDefault();
-            };
+            }
         };
 
         function updateTransform() {
@@ -439,9 +452,9 @@
         window.saveVisualTransform = async () => {
             const type = adjustState.target;
             const saveBtn = document.getElementById('saveTransformBtn');
-            const originalText = saveBtn.innerText;
+            const originalText = saveBtn ? saveBtn.innerText : "";
             
-            saveBtn.innerText = "同步中...";
+            if (saveBtn) saveBtn.innerText = "同步中...";
             const newData = JSON.parse(JSON.stringify(currentPhotoData));
             newData[`${type}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
             
@@ -451,10 +464,11 @@
                 document.querySelectorAll('.adjust-mode').forEach(el => el.classList.remove('adjust-mode'));
                 document.querySelectorAll('.adjust-highlight').forEach(el => el.classList.add('hidden'));
                 document.getElementById('adjustToolbar').classList.add('hidden');
+                showToast("完美角度已儲存！✨");
             } catch (e) { 
-                console.error(e);
+                showToast("儲存失敗，請確認網路連線。"); 
             } finally {
-                saveBtn.innerText = originalText;
+                if (saveBtn) saveBtn.innerText = originalText;
             }
         };
 
@@ -463,6 +477,7 @@
             const newData = { ...currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
             await secureUpdate(newData);
+            showToast("照片已移除。");
         };
 
         function syncMessages() {
@@ -483,14 +498,22 @@
             );
         }
 
-        document.getElementById('sendBtn').onclick = async () => {
-            const n = document.getElementById('userName').value, c = document.getElementById('userMsg').value;
-            if (!n || !c) return;
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), { name: n, content: c, createdAt: serverTimestamp() });
-                document.getElementById('userName').value = ''; document.getElementById('userMsg').value = '';
-                createHearts();
-            } catch (e) { console.error(e); }
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn) {
+            sendBtn.onclick = async () => {
+                const n = document.getElementById('userName').value, c = document.getElementById('userMsg').value;
+                if (!n || !c) return;
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), { name: n, content: c, createdAt: serverTimestamp() });
+                    document.getElementById('userName').value = ''; document.getElementById('userMsg').value = '';
+                    createHearts();
+                } catch (e) { console.error(e); }
+            };
+        }
+
+        const showToast = (msg) => {
+            const t = document.getElementById('toast');
+            if (t) { t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
         };
     </script>
 
@@ -508,7 +531,6 @@
                 setTimeout(() => h.remove(), 2000);
             }
         }
-        // 初始化圖示
         window.addEventListener('load', () => {
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });
