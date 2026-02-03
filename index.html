@@ -9,7 +9,7 @@
     <!-- 使用 Lucide 圖示 -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- 基礎 UI 腳本：確保按鈕與錯誤處理即時生效 -->
+    <!-- 基礎 UI 腳本：確保按鈕與登入邏輯即時生效 -->
     <script>
         window.isAdmin = false;
 
@@ -25,6 +25,40 @@
                 const input = document.getElementById('passwordInput');
                 if (input) input.value = ''; 
             }
+        }
+
+        // 登入驗證邏輯：放在全域確保點擊必有反應
+        function performLogin() {
+            const pwdInput = document.getElementById('passwordInput');
+            if (pwdInput && pwdInput.value === "1234") {
+                window.isAdmin = true;
+                document.body.classList.add('is-admin');
+                
+                // 顯示管理員相關介面
+                document.getElementById('adminBadge')?.classList.remove('hidden');
+                document.getElementById('loginBtn')?.classList.add('hidden');
+                document.getElementById('logoutBtn')?.classList.remove('hidden');
+                document.getElementById('addGalleryBtn')?.classList.remove('hidden');
+                
+                closeLogin();
+                showToast("管理員已登入，現在可以調整照片囉！✨");
+                
+                // 觸發模組內的 UI 重新渲染
+                if (window.renderPhotos) window.renderPhotos(window.currentPhotoData);
+            } else {
+                alert("密碼不正確，請再試一次。");
+            }
+        }
+
+        function handleLogout() {
+            window.isAdmin = false; 
+            document.body.classList.remove('is-admin');
+            document.getElementById('adminBadge')?.classList.add('hidden');
+            document.getElementById('loginBtn')?.classList.remove('hidden');
+            document.getElementById('logoutBtn')?.classList.add('hidden');
+            document.getElementById('addGalleryBtn')?.classList.add('hidden');
+            showToast("已登出管理模式。");
+            if (window.renderPhotos) window.renderPhotos(window.currentPhotoData);
         }
 
         function handleImgError(img) {
@@ -46,6 +80,14 @@
                 setTimeout(() => t.classList.remove('show'), 3000); 
             }
         }
+
+        // 初始化按鈕事件
+        window.addEventListener('DOMContentLoaded', () => {
+            const confirmBtn = document.getElementById('loginConfirmBtn');
+            if (confirmBtn) confirmBtn.onclick = performLogin;
+            const pwdInp = document.getElementById('passwordInput');
+            if (pwdInp) pwdInp.onkeypress = (e) => { if (e.key === 'Enter') performLogin(); };
+        });
     </script>
 
     <style>
@@ -220,7 +262,7 @@
     <footer class="py-12 text-center text-gray-400 text-sm">
         <div class="mb-2 space-x-2">
             <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">正在偵測雲端狀態...</span>
-            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V2</span>
+            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V3</span>
         </div>
         <p>© 2025 鄭向晴小可愛 ❤️ | 
             <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline decoration-dotted">管理員登入</button>
@@ -236,7 +278,6 @@
 
         const GITHUB_URL = "https://shalukuc-debug.github.io/shana/";
         let db, auth, appId, configRef;
-        let currentPhotoData = null;
 
         const formatPath = (p) => {
             if (!p) return "";
@@ -274,9 +315,10 @@
 
         initAuth();
 
-        function renderPhotos(data) {
+        // 核心渲染邏輯：掛載到 window 供全域登入腳本調用
+        window.renderPhotos = function(data) {
             const finalData = data || defaultPhotos;
-            currentPhotoData = JSON.parse(JSON.stringify(finalData)); 
+            window.currentPhotoData = JSON.parse(JSON.stringify(finalData)); 
             
             const applyStyle = (id, style) => {
                 const img = document.getElementById(id);
@@ -288,14 +330,14 @@
             };
 
             const hImg = document.getElementById('img_hero');
-            if (hImg) { hImg.style.display = 'block'; hImg.src = formatPath(currentPhotoData.hero); applyStyle('img_hero', currentPhotoData.heroStyle); }
+            if (hImg) { hImg.style.display = 'block'; hImg.src = formatPath(window.currentPhotoData.hero); applyStyle('img_hero', window.currentPhotoData.heroStyle); }
             
             const aImg = document.getElementById('img_about');
-            if (aImg) { aImg.style.display = 'block'; aImg.src = formatPath(currentPhotoData.about); applyStyle('img_about', currentPhotoData.aboutStyle); }
+            if (aImg) { aImg.style.display = 'block'; aImg.src = formatPath(window.currentPhotoData.about); applyStyle('img_about', window.currentPhotoData.aboutStyle); }
 
             const grid = document.getElementById('gallery_grid');
             if (grid) {
-                const galleryList = currentPhotoData.gallery || [];
+                const galleryList = window.currentPhotoData.gallery || [];
                 const uniqueGallery = [...new Set(galleryList)]; 
                 grid.innerHTML = uniqueGallery.map((name, idx) => `
                     <div class="gallery-item photo-container relative">
@@ -309,15 +351,10 @@
                 `).join('');
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
-        }
-
-        // 供外部全域調用的 UI 刷新函數
-        window.refreshUIAfterLogin = () => {
-            renderPhotos(currentPhotoData);
         };
 
         function syncPhotos() { 
-            onSnapshot(configRef, (snap) => { if(snap.exists()) renderPhotos(snap.data()); else renderPhotos(defaultPhotos); }); 
+            onSnapshot(configRef, (snap) => { if(snap.exists()) window.renderPhotos(snap.data()); else window.renderPhotos(defaultPhotos); }); 
         }
 
         async function secureUpdate(data) {
@@ -335,13 +372,13 @@
 
         document.getElementById('filePicker').onchange = async (e) => {
             const files = Array.from(e.target.files);
-            if (!files.length || !currentPhotoData) return;
+            if (!files.length || !window.currentPhotoData) return;
             const statusLabel = document.getElementById('uploadStatus');
             const batchBtn = document.getElementById('batchAddBtn');
             const originalBtnHtml = batchBtn ? batchBtn.innerHTML : "";
             if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "同步中..."; }
             if (statusLabel) statusLabel.innerText = `⏳ 同步中...`;
-            const newData = { ...currentPhotoData };
+            const newData = { ...window.currentPhotoData };
             const target = window.currentEditingTarget;
             if (target === 'hero') newData.hero = files[0].name;
             else if (target === 'about') newData.about = files[0].name;
@@ -362,7 +399,7 @@
         let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
         window.enterAdjustMode = (type) => {
             adjustState.target = type;
-            const style = currentPhotoData[`${type}Style`] || { scale: 1, x: 0, y: 0 };
+            const style = window.currentPhotoData[`${type}Style`] || { scale: 1, x: 0, y: 0 };
             adjustState.currentX = style.x; adjustState.currentY = style.y; adjustState.scale = style.scale;
             document.body.classList.add('is-adjusting');
             document.getElementById(`${type}_container`).classList.add('adjust-mode');
@@ -396,7 +433,7 @@
             const saveBtn = document.getElementById('saveTransformBtn');
             const originalText = saveBtn ? saveBtn.innerText : "";
             if (saveBtn) saveBtn.innerText = "同步中...";
-            const newData = JSON.parse(JSON.stringify(currentPhotoData));
+            const newData = JSON.parse(JSON.stringify(window.currentPhotoData));
             newData[`${adjustState.target}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
             try {
                 await secureUpdate(newData);
@@ -411,7 +448,7 @@
 
         window.deleteGalleryItem = async (fileName) => {
             if (!confirm("確定要刪除這張照片嗎？")) return;
-            const newData = { ...currentPhotoData };
+            const newData = { ...window.currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
             await secureUpdate(newData);
         };
