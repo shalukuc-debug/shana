@@ -104,7 +104,7 @@
     <!-- 登入彈窗 -->
     <div id="loginModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-bg">
         <div class="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl text-center">
-            <h3 class="text-2xl font-bold text-pink-500 mb-6">管理員登入</h3>
+            <h3 class="text-2xl font-bold text-pink-500 mb-6 text-center">管理員登入</h3>
             <input id="passwordInput" type="password" placeholder="請輸入密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300 text-center">
             <div class="flex space-x-2">
                 <button onclick="closeLogin()" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-500 font-bold">取消</button>
@@ -219,7 +219,8 @@
 
     <footer class="py-12 text-center text-gray-400 text-sm">
         <div class="mb-2 space-x-2">
-            <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">偵測中...</span>
+            <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">正在偵測雲端狀態...</span>
+            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.Final</span>
         </div>
         <p>© 2025 鄭向晴小可愛 ❤️ | 
             <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline decoration-dotted">管理員登入</button>
@@ -243,7 +244,7 @@
             return !window.location.hostname.includes('github.io') ? GITHUB_URL + p : p;
         };
 
-        // 核心：回寫目前的預覽狀態
+        // 預設狀態固化：大頭照 4.jpg，關於我 20.jpg，以及完整的相簿清單
         const defaultPhotos = {
             hero: '4.jpg', heroStyle: { scale: 1, x: 0, y: 0 },
             about: '20.jpg', aboutStyle: { scale: 1, x: 0, y: 0 },
@@ -311,7 +312,35 @@
             }
         }
 
-        window.refreshUIAfterLogin = () => renderPhotos(currentPhotoData);
+        // 管理員功能：直接綁定到視窗事件
+        window.performLogin = function() {
+            if (document.getElementById('passwordInput').value === "1234") {
+                window.isAdmin = true;
+                document.body.classList.add('is-admin');
+                document.getElementById('adminBadge')?.classList.remove('hidden');
+                document.getElementById('loginBtn')?.classList.add('hidden');
+                document.getElementById('logoutBtn')?.classList.remove('hidden');
+                document.getElementById('addGalleryBtn')?.classList.remove('hidden');
+                closeLogin();
+                showToast("管理員已成功登入！✨");
+                renderPhotos(currentPhotoData);
+            } else { alert("密碼錯誤"); }
+        };
+
+        const confirmBtn = document.getElementById('loginConfirmBtn');
+        if (confirmBtn) confirmBtn.onclick = window.performLogin;
+        const pwdInp = document.getElementById('passwordInput');
+        if (pwdInp) pwdInp.onkeypress = (e) => { if (e.key === 'Enter') window.performLogin(); };
+
+        window.handleLogout = () => {
+            window.isAdmin = false; 
+            document.body.classList.remove('is-admin');
+            document.getElementById('adminBadge')?.classList.add('hidden');
+            document.getElementById('loginBtn')?.classList.remove('hidden');
+            document.getElementById('logoutBtn')?.classList.add('hidden');
+            document.getElementById('addGalleryBtn')?.classList.add('hidden');
+            renderPhotos(currentPhotoData);
+        };
 
         function syncPhotos() { 
             onSnapshot(configRef, (snap) => { if(snap.exists()) renderPhotos(snap.data()); else renderPhotos(defaultPhotos); }); 
