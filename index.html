@@ -70,8 +70,9 @@
             <input id="passwordInput" type="password" placeholder="管理密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300">
             <div class="flex space-x-2">
                 <button onclick="closeLogin()" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-500 font-bold">取消</button>
-                <button id="loginConfirmBtn" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500">登入</button>
+                <button id="loginConfirmBtn" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500 transition active:scale-95">登入</button>
             </div>
+            <p class="text-center text-[10px] text-gray-400 mt-4 italic">請輸入專屬密碼以開啟照片調整功能</p>
         </div>
     </div>
 
@@ -100,7 +101,7 @@
             <a href="#guestbook" class="hover:text-pink-400 transition">悄悄話</a>
         </div>
         <div id="adminBadge" class="hidden bg-pink-100 text-pink-500 px-3 py-1 rounded-full text-xs font-bold animate-pulse border border-pink-200">
-            管理員已登入
+            管理員模式
         </div>
     </nav>
 
@@ -206,6 +207,18 @@
             return p;
         };
 
+        // 預設資料
+        const defaultPhotos = {
+            hero: '20250206_153614.jpg', heroStyle: { scale: 1, x: 0, y: 0 },
+            about: '20250104_193151.jpg', aboutStyle: { scale: 1, x: 0, y: 0 },
+            gallery: ['20250205_194430.jpg', '20250129_082834.jpg', '20250112_162245.jpg']
+        };
+
+        let user = null;
+        let isAdmin = false;
+        let currentPhotoData = defaultPhotos;
+
+        // Firebase 初始化
         try {
             const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
             if (firebaseConfig.apiKey) {
@@ -217,16 +230,6 @@
                 initAuth();
             } else { renderPhotos(null); }
         } catch (e) { renderPhotos(null); }
-        
-        let user = null;
-        let isAdmin = false;
-        let currentPhotoData = null;
-
-        const defaultPhotos = {
-            hero: '20250206_153614.jpg', heroStyle: { scale: 1, x: 0, y: 0 },
-            about: '20250104_193151.jpg', aboutStyle: { scale: 1, x: 0, y: 0 },
-            gallery: ['20250205_194430.jpg', '20250129_082834.jpg', '20250112_162245.jpg']
-        };
 
         async function initAuth() {
             try {
@@ -236,7 +239,40 @@
             } catch (e) { console.error(e); }
         }
 
-        // --- 核心拖曳調整邏輯 ---
+        // --- 登入邏輯修正：確保獨立運作且即時反應 ---
+        function performLogin() {
+            const pwd = document.getElementById('passwordInput').value;
+            if (pwd === "1234") {
+                isAdmin = true;
+                document.body.classList.add('is-admin');
+                document.getElementById('adminBadge').classList.remove('hidden');
+                document.getElementById('loginBtn').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.remove('hidden');
+                document.getElementById('addGalleryBtn').classList.remove('hidden');
+                closeLogin();
+                showToast("管理員已成功登入！✨");
+                renderPhotos(currentPhotoData);
+            } else {
+                alert("密碼不正確，請再試一次。");
+            }
+        }
+
+        // 綁定點擊事件與 Enter 鍵
+        document.getElementById('loginConfirmBtn').onclick = performLogin;
+        document.getElementById('passwordInput').onkeypress = (e) => { if (e.key === 'Enter') performLogin(); };
+
+        window.handleLogout = () => {
+            isAdmin = false;
+            document.body.classList.remove('is-admin');
+            document.getElementById('adminBadge').classList.add('hidden');
+            document.getElementById('loginBtn').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('addGalleryBtn').classList.add('hidden');
+            showToast("已登出管理模式。");
+            renderPhotos(currentPhotoData);
+        };
+
+        // --- 拖曳調整邏輯 ---
         let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
 
         window.enterAdjustMode = (type) => {
@@ -288,7 +324,6 @@
         function updateTransform() {
             const img = document.getElementById(`img_${adjustState.target}`);
             if (img) {
-                // 取消 object-cover 的限制，讓照片呈現原始比例
                 img.style.objectFit = "contain";
                 img.style.width = "auto";
                 img.style.height = "auto";
@@ -309,7 +344,7 @@
                 document.querySelectorAll('.adjust-mode').forEach(el => el.classList.remove('adjust-mode'));
                 document.querySelectorAll('.adjust-highlight').forEach(el => el.classList.add('hidden'));
                 document.getElementById('adjustToolbar').classList.add('hidden');
-                showToast("完美位置已記憶！✨");
+                showToast("位置已儲存至雲端！✨");
             } catch (e) { showToast("儲存失敗"); }
         };
 
@@ -352,26 +387,6 @@
         }
 
         function syncPhotos() { onSnapshot(configRef, (snap) => renderPhotos(snap.exists() ? snap.data() : null)); }
-
-        document.getElementById('loginConfirmBtn').onclick = () => {
-            if (document.getElementById('passwordInput').value === "1234") {
-                isAdmin = true; document.body.classList.add('is-admin');
-                document.getElementById('adminBadge').classList.remove('hidden');
-                document.getElementById('loginBtn').classList.add('hidden');
-                document.getElementById('logoutBtn').classList.remove('hidden');
-                document.getElementById('addGalleryBtn').classList.remove('hidden');
-                closeLogin(); showToast("管理員已登入！✨"); renderPhotos(currentPhotoData);
-            } else { alert("密碼錯誤"); }
-        };
-
-        window.handleLogout = () => {
-            isAdmin = false; document.body.classList.remove('is-admin');
-            document.getElementById('adminBadge').classList.add('hidden');
-            document.getElementById('loginBtn').classList.remove('hidden');
-            document.getElementById('logoutBtn').classList.add('hidden');
-            document.getElementById('addGalleryBtn').classList.add('hidden');
-            showToast("已登出管理。"); renderPhotos(currentPhotoData);
-        };
 
         window.triggerFilePicker = (target) => {
             if (!isAdmin) return;
