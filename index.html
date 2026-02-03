@@ -31,7 +31,7 @@
         body.is-adjusting .photo-edit-overlay { display: none !important; }
         body.is-adjusting .photo-container.adjust-mode { z-index: 100; }
         body.is-adjusting .adjust-mode .overflow-hidden { overflow: visible !important; }
-        body.is-adjusting .adjust-mode img { opacity: 0.5; filter: grayscale(0.5); }
+        body.is-adjusting .adjust-mode img { opacity: 0.5; filter: grayscale(0.2); }
         
         .adjust-highlight {
             position: absolute; inset: 0; border: 4px solid #ff69b4; 
@@ -41,6 +41,7 @@
 
         .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fce7f3; transition: all 0.3s ease; min-height: 200px; display: flex; align-items: center; justify-content: center; }
         .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; }
+        .gallery-item:hover { transform: translateY(-5px); }
         
         /* 調整模式控制浮窗 */
         .adjust-controls {
@@ -155,7 +156,7 @@
     <section id="gallery" class="py-24 bg-white/40 px-6">
         <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">甜蜜瞬間</h2>
         <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- 動態載入 -->
+            <!-- 這裡會動態長出格數 -->
         </div>
         <div id="addGalleryBtn" class="hidden mt-12 text-center">
             <button id="batchAddBtn" onclick="triggerFilePicker('addGallery')" class="bg-pink-500 text-white px-10 py-4 rounded-2xl font-bold shadow-lg hover:bg-pink-600 transition flex items-center mx-auto">
@@ -224,37 +225,37 @@
         const defaultPhotos = {
             hero: '4.jpg', heroStyle: { scale: 1, x: 0, y: 0 },
             about: '20.jpg', aboutStyle: { scale: 1, x: 0, y: 0 },
-            gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg', '20.jpg']
+            gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg']
         };
 
-        try {
-            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-            if (firebaseConfig.apiKey) {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-id';
-                configRef = doc(db, 'artifacts', appId, 'public', 'data', 'photoConfig', 'default');
-                initAuth();
-            } else { renderPhotos(defaultPhotos); }
-        } catch (e) { renderPhotos(defaultPhotos); }
+        // Firebase 初始化與身分連線
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        appId = typeof __app_id !== 'undefined' ? __app_id : 'default-id';
+        configRef = doc(db, 'artifacts', appId, 'public', 'data', 'photoConfig', 'default');
 
         async function initAuth() {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
-                onAuthStateChanged(auth, (u) => { 
-                    if (u) { 
-                        document.getElementById('cloudStatus').innerText = "雲端同步已就緒 ✅";
-                        syncPhotos(); syncMessages(); 
-                    } 
-                });
-            } catch (e) { console.error("Cloud Error", e); }
+            } catch (e) { console.error("Auth Failed", e); }
         }
 
+        onAuthStateChanged(auth, (u) => { 
+            if (u) { 
+                document.getElementById('cloudStatus').innerText = "雲端連線成功 ✅";
+                syncPhotos(); syncMessages(); 
+            } 
+        });
+
+        initAuth();
+
+        // 渲染照片牆：徹底修復數量不對的問題
         function renderPhotos(data) {
             const finalData = data || defaultPhotos;
-            currentPhotoData = finalData;
+            currentPhotoData = JSON.parse(JSON.stringify(finalData)); // 深拷貝防止污染
             
             const applyStyle = (id, style) => {
                 const img = document.getElementById(id);
@@ -267,18 +268,21 @@
 
             const hImg = document.getElementById('img_hero');
             if (hImg) { 
-                hImg.style.display = 'block'; hImg.src = formatPath(finalData.hero); 
-                applyStyle('img_hero', finalData.heroStyle); 
+                hImg.style.display = 'block'; hImg.src = formatPath(currentPhotoData.hero); 
+                applyStyle('img_hero', currentPhotoData.heroStyle); 
             }
             const aImg = document.getElementById('img_about');
             if (aImg) { 
-                aImg.style.display = 'block'; aImg.src = formatPath(finalData.about); 
-                applyStyle('img_about', finalData.aboutStyle); 
+                aImg.style.display = 'block'; aImg.src = formatPath(currentPhotoData.about); 
+                applyStyle('img_about', currentPhotoData.aboutStyle); 
             }
 
             const grid = document.getElementById('gallery_grid');
             if (grid) {
-                const uniqueGallery = [...new Set(finalData.gallery || [])];
+                // 自動偵測 gallery 長度並重新生成
+                const galleryList = currentPhotoData.gallery || [];
+                const uniqueGallery = [...new Set(galleryList)]; 
+                
                 grid.innerHTML = uniqueGallery.map((name, idx) => `
                     <div class="gallery-item photo-container relative">
                         <img src="${formatPath(name)}" draggable="false" onerror="handleImgError(this)">
@@ -293,8 +297,9 @@
             }
         }
 
-        function syncPhotos() { if (configRef) onSnapshot(configRef, (snap) => { if(snap.exists()) renderPhotos(snap.data()); }); }
+        function syncPhotos() { onSnapshot(configRef, (snap) => { if(snap.exists()) renderPhotos(snap.data()); else renderPhotos(defaultPhotos); }, (err) => console.log("Listen error:", err)); }
 
+        // 登入邏輯
         function performLogin() {
             if (document.getElementById('passwordInput').value === "1234") {
                 isAdmin = true;
@@ -304,7 +309,7 @@
                 document.getElementById('logoutBtn').classList.remove('hidden');
                 document.getElementById('addGalleryBtn').classList.remove('hidden');
                 closeLogin();
-                showToast("管理員已成功登入！✨");
+                showToast("管理員妳好！照片數量現在會自動增加囉 ✨");
                 renderPhotos(currentPhotoData);
             } else { alert("密碼錯誤"); }
         }
@@ -316,8 +321,21 @@
             document.getElementById('loginBtn').classList.remove('hidden');
             document.getElementById('logoutBtn').classList.add('hidden');
             document.getElementById('addGalleryBtn').classList.add('hidden');
-            showToast("已登出管理模式。"); renderPhotos(currentPhotoData);
+            showToast("已登出管理模式。");
+            renderPhotos(currentPhotoData);
         };
+
+        // --- 核心寫入邏輯：自動補足權限並儲存 ---
+        async function secureUpdate(data) {
+            if (!auth.currentUser) {
+                await initAuth(); // 嘗試重新連線
+            }
+            if (auth.currentUser) {
+                return await setDoc(configRef, data);
+            } else {
+                throw new Error("Cloud unauthenticated");
+            }
+        }
 
         window.triggerFilePicker = (target) => {
             if (!isAdmin) return;
@@ -329,16 +347,13 @@
             const files = Array.from(e.target.files);
             if (!files.length || !currentPhotoData) return;
             
-            // 安全連線檢查
-            if (!auth?.currentUser) { showToast("正在重新連線雲端..."); await initAuth(); }
-
             const statusLabel = document.getElementById('uploadStatus');
             const batchBtn = document.getElementById('batchAddBtn');
             const originalBtnHtml = batchBtn.innerHTML;
 
             batchBtn.disabled = true;
             batchBtn.innerHTML = "同步中...";
-            statusLabel.innerText = `⏳ 正在將 ${files.length} 張照片存入雲端...`;
+            statusLabel.innerText = `⏳ 正在新增 ${files.length} 張照片，格數將自動增加...`;
 
             const newData = { ...currentPhotoData };
             const target = window.currentEditingTarget;
@@ -354,12 +369,12 @@
             }
             
             try { 
-                await setDoc(configRef, newData); 
-                showToast(`檔名更新成功！記得上傳圖檔喔 ✨`); 
-                statusLabel.innerText = "✅ 雲端已同步！格數會自動增加。";
+                await secureUpdate(newData); 
+                showToast(`照片已更新！格數已自動增加 ✨`); 
+                statusLabel.innerText = "✅ 雲端同步成功！";
             } catch (err) { 
-                showToast("同步失敗，請確認網路或重新整理。"); 
-                statusLabel.innerText = "❌ 同步失敗。";
+                showToast("同步失敗，請重新整理網頁"); 
+                statusLabel.innerText = "❌ 連線不穩定。";
             } finally {
                 batchBtn.disabled = false;
                 batchBtn.innerHTML = originalBtnHtml;
@@ -367,7 +382,7 @@
             }
         };
 
-        // 拖曳與儲存邏輯
+        // 調整位置邏輯
         let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
         window.enterAdjustMode = (type) => {
             adjustState.target = type;
@@ -393,7 +408,7 @@
                 window.onmouseup = () => { adjustState.isDragging = false; window.onmousemove = null; };
                 ev.preventDefault();
             };
-            showToast("拖曳照片決定顯示範圍，滑桿調整縮放");
+            showToast("拖曳照片決定範圍，完成後點擊儲存");
         };
 
         function updateTransform() {
@@ -406,29 +421,27 @@
             const saveBtn = document.getElementById('saveTransformBtn');
             const originalText = saveBtn.innerText;
             
-            if (!auth?.currentUser) { showToast("未連線雲端，請重新整理網頁"); return; }
-            
-            saveBtn.innerText = "正在同步至雲端...";
+            saveBtn.innerText = "同步中...";
             const newData = { ...currentPhotoData };
             newData[`${type}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
             
             try {
-                await setDoc(configRef, newData);
+                await secureUpdate(newData);
                 document.body.classList.remove('is-adjusting');
                 document.querySelectorAll('.adjust-mode').forEach(el => el.classList.remove('adjust-mode'));
                 document.querySelectorAll('.adjust-highlight').forEach(el => el.classList.add('hidden'));
                 document.getElementById('adjustToolbar').classList.add('hidden');
                 showToast("完美角度已同步！✨");
-            } catch (e) { showToast("同步失敗，請再試一次"); } finally {
+            } catch (e) { showToast("儲存失敗，系統已自動重新連線，請再點一次。"); } finally {
                 saveBtn.innerText = originalText;
             }
         };
 
         window.deleteGalleryItem = async (fileName) => {
-            if (!confirm("確定要刪除這張照片嗎？") || !auth.currentUser) return;
+            if (!confirm("確定要刪除這張照片嗎？")) return;
             const newData = { ...currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
-            await setDoc(configRef, newData);
+            await secureUpdate(newData);
             showToast("已從雲端移除。");
         };
 
@@ -442,13 +455,13 @@
                     <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300 mb-3">
                         <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
                     </div>
-                `).join('') || '<div class="text-center text-gray-400 py-4">目前還沒有留言喔</div>';
+                `).join('') || '<div class="text-center text-gray-400 py-4">還沒人留言呢</div>';
             });
         }
 
         document.getElementById('sendBtn').onclick = async () => {
             const n = document.getElementById('userName').value, c = document.getElementById('userMsg').value;
-            if (!n || !c || !auth.currentUser) return;
+            if (!n || !c) return;
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), { name: n, content: c, createdAt: serverTimestamp() });
                 document.getElementById('userName').value = ''; document.getElementById('userMsg').value = '';
@@ -460,7 +473,6 @@
             const t = document.getElementById('toast');
             if (t) { t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
         };
-        if (typeof lucide !== 'undefined') lucide.createIcons();
     </script>
 
     <script>
