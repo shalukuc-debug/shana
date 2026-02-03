@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鄭向晴小可愛的個人空間</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-pink: #ffb7c5;
+            --soft-purple: #e2d1f9;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #fff5f7 0%, #f0f4ff 100%);
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+        .cute-title {
+            font-family: 'Zhi Mang Xing', cursive, sans-serif;
+        }
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        .heart-particle {
+            position: absolute;
+            pointer-events: none;
+            animation: flyUp 2s linear forwards;
+            z-index: 100;
+        }
+        @keyframes flyUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-100px) scale(1.5); opacity: 0; }
+        }
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .game-card { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .game-card:hover { transform: scale(1.05); }
+        
+        /* 記憶遊戲卡片樣式 */
+        .memory-card { aspect-ratio: 1; cursor: pointer; perspective: 1000px; }
+        .memory-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
+        .memory-card.flipped .memory-card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .card-back { background-color: #ffb7c5; color: white; }
+        .card-front { background-color: white; transform: rotateY(180deg); border: 2px solid #ffb7c5; }
+        
+        .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fff; }
+        .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; }
+        .gallery-item:hover img { transform: scale(1.1); }
+        .gallery-caption { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white; padding: 15px 10px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; text-align: center; }
+        .gallery-item:hover .gallery-caption { opacity: 1; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <nav class="fixed w-full z-50 glass-morphism px-6 py-4 flex justify-between items-center">
+        <div class="text-2xl font-bold text-pink-500">向晴 🍬</div>
+        <div class="space-x-4 md:space-x-6 hidden sm:flex">
+            <a href="#home" class="hover:text-pink-400 transition">首頁</a>
+            <a href="#about" class="hover:text-pink-400 transition">關於我</a>
+            <a href="#games" class="hover:text-pink-400 transition font-bold text-pink-600">遊戲區</a>
+            <a href="#gallery" class="hover:text-pink-400 transition">甜蜜瞬間</a>
+            <a href="#guestbook" class="hover:text-pink-400 transition">悄悄話</a>
+        </div>
+    </nav>
+
+    <!-- 主視覺區塊 -->
+    <section id="home" class="min-h-screen flex flex-col items-center justify-center pt-20 overflow-hidden relative">
+        <div class="absolute inset-0 pointer-events-none opacity-20">
+            <div class="absolute top-20 left-10 text-4xl floating">⭐</div>
+            <div class="absolute bottom-20 right-10 text-4xl floating" style="animation-delay: 1s;">🍭</div>
+            <div class="absolute top-40 right-20 text-4xl floating" style="animation-delay: 0.5s;">☁️</div>
+        </div>
+
+        <div class="text-center z-10 px-4">
+            <div class="mb-6 inline-block p-4 rounded-full bg-white shadow-xl floating">
+                <div class="w-44 h-44 md:w-60 md:h-60 rounded-full overflow-hidden border-8 border-pink-100">
+                    <img src="https://images.unsplash.com/photo-1519452575417-564c1401ecc0?q=80&w=400" alt="向晴大頭照" class="w-full h-full object-cover">
+                </div>
+            </div>
+            <h1 class="text-5xl md:text-7xl font-bold text-pink-500 mb-4 cute-title">鄭向晴小可愛</h1>
+            <p class="text-lg md:text-xl text-gray-500 mb-8">收集世間所有的溫柔與可愛 ✨</p>
+            <button onclick="createHearts(event)" class="bg-pink-400 hover:bg-pink-500 text-white px-10 py-4 rounded-full shadow-lg transition transform hover:scale-105 active:scale-95 text-lg font-bold">
+                點擊獲取愛心 💖
+            </button>
+        </div>
+    </section>
+
+    <!-- 關於我 -->
+    <section id="about" class="py-24 px-6 max-w-5xl mx-auto">
+        <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">關於小可愛</h2>
+        <div class="grid md:grid-cols-2 gap-12 items-center">
+            <div class="glass-morphism p-10 rounded-3xl shadow-sm leading-relaxed text-gray-700">
+                <p class="text-xl mb-6">
+                    哈囉！我是向晴，大家公認的小可愛。我最喜歡和家人一起去旅遊，不管是去湖邊散步，還是跟可愛的公仔合照，我都超級開心！
+                </p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white/80 p-4 rounded-2xl text-center shadow-sm border border-pink-50">
+                        <span class="block text-3xl mb-1">🍓</span>
+                        <span class="text-sm font-bold text-pink-400">超級愛草莓</span>
+                    </div>
+                    <div class="bg-white/80 p-4 rounded-2xl text-center shadow-sm border border-pink-50">
+                        <span class="block text-3xl mb-1">👨‍👩‍👧</span>
+                        <span class="text-sm font-bold text-pink-400">愛爸爸媽媽</span>
+                    </div>
+                </div>
+            </div>
+            <div class="relative">
+                <div class="rounded-3xl overflow-hidden shadow-2xl rotate-2 hover:rotate-0 transition duration-500 border-[12px] border-white">
+                    <img src="https://images.unsplash.com/photo-1518623001395-125242310d0c?q=80&w=600" alt="吃草莓的照片" class="w-full h-80 object-cover">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 遊戲區塊 -->
+    <section id="games" class="py-24 px-6 bg-pink-50/50">
+        <div class="max-w-6xl mx-auto text-center">
+            <h2 class="text-4xl font-bold text-pink-500 mb-16 cute-title">小可愛遊戲樂園</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="game-card glass-morphism p-8 rounded-3xl shadow-xl">
+                    <div class="text-6xl mb-6">🍭</div>
+                    <h3 class="text-2xl font-bold text-pink-500 mb-4">接糖果大挑戰</h3>
+                    <button onclick="openGame('catcher')" class="bg-pink-400 text-white px-8 py-3 rounded-full hover:bg-pink-500 shadow-md transition-all">開始玩</button>
+                </div>
+                <div class="game-card glass-morphism p-8 rounded-3xl shadow-xl">
+                    <div class="text-6xl mb-6">🧩</div>
+                    <h3 class="text-2xl font-bold text-pink-500 mb-4">記憶對對碰</h3>
+                    <button onclick="openGame('memory')" class="bg-pink-400 text-white px-8 py-3 rounded-full hover:bg-pink-500 shadow-md transition-all">開始玩</button>
+                </div>
+                <div class="game-card glass-morphism p-8 rounded-3xl shadow-xl">
+                    <div class="text-6xl mb-6">🎈</div>
+                    <h3 class="text-2xl font-bold text-pink-500 mb-4">彩色戳戳樂</h3>
+                    <button onclick="openGame('pop')" class="bg-pink-400 text-white px-8 py-3 rounded-full hover:bg-pink-500 shadow-md transition-all">開始玩</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 遊戲彈窗 -->
+    <div id="gameModal" class="fixed inset-0 z-[100] hidden bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+            <button onclick="closeGame()" class="absolute top-6 right-8 text-gray-400 hover:text-pink-500 text-5xl z-10">&times;</button>
+            <div id="gameContent" class="p-10"></div>
+        </div>
+    </div>
+
+    <!-- 相簿區塊 -->
+    <section id="gallery" class="py-24 bg-white/40">
+        <h2 class="text-4xl font-bold text-center text-pink-500 mb-4 cute-title">甜蜜瞬間</h2>
+        <p class="text-center text-gray-500 mb-16 px-4">這裡記錄了向晴發現的每一份可愛 ✨</p>
+        <div class="max-w-6xl mx-auto px-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div class="gallery-item aspect-[3/4] md:col-span-1 lg:row-span-2">
+                <img src="https://images.unsplash.com/photo-1542044896530-05d85be9b11a?q=80&w=500" alt="和爸爸合照">
+                <div class="gallery-caption">最喜歡爸爸了 ❤️</div>
+            </div>
+            <div class="gallery-item aspect-video md:col-span-2">
+                <img src="https://images.unsplash.com/photo-1472393365320-dc77e9abe70a?q=80&w=800" alt="風景美照">
+                <div class="gallery-caption">日月潭風景好漂亮 🏞️</div>
+            </div>
+            <div class="gallery-item aspect-square">
+                <img src="https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?q=80&w=500" alt="驚訝瞬間">
+                <div class="gallery-caption">哇！你看！ 😲</div>
+            </div>
+            <div class="gallery-item aspect-square">
+                <img src="https://images.unsplash.com/photo-1506362802221-987f6300586f?q=80&w=500" alt="小豬">
+                <div class="gallery-caption">可愛的小動物 🐷</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 留言板 -->
+    <section id="guestbook" class="py-24 px-6 max-w-2xl mx-auto">
+        <div class="glass-morphism p-10 rounded-[2.5rem] shadow-xl">
+            <h2 class="text-3xl font-bold text-pink-400 mb-8 text-center cute-title">雲端悄悄話牆</h2>
+            <div id="messageBox" class="mb-8 space-y-4 max-h-80 overflow-y-auto pr-2 text-sm">
+                <div class="text-center py-4 text-gray-400" id="loadingMsg">正在連線到雲端...</div>
+            </div>
+            <div class="flex flex-col space-y-4">
+                <input id="userName" type="text" placeholder="你的稱呼" class="px-5 py-3 rounded-full border border-pink-100 outline-none focus:ring-2 focus:ring-pink-200 transition-all">
+                <textarea id="userMsg" rows="3" placeholder="想對小可愛說什麼呢？" class="px-5 py-3 rounded-3xl border border-pink-100 outline-none focus:ring-2 focus:ring-pink-200 transition-all"></textarea>
+                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg disabled:bg-gray-300">送出留言</button>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-12 text-center text-gray-400 text-sm">
+        <p>© 2025 鄭向晴小可愛專屬空間 | 雲端即時互動版 ❤️</p>
+    </footer>
+
+    <!-- Firebase SDK & 雲端邏輯 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        let user = null;
+
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+
+        initAuth().catch(console.error);
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (user) startListeningMessages();
+        });
+
+        function startListeningMessages() {
+            const messageBox = document.getElementById('messageBox');
+            const messagesRef = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+            
+            onSnapshot(messagesRef, (snapshot) => {
+                const loading = document.getElementById('loadingMsg');
+                if (loading) loading.remove();
+                
+                const messages = [];
+                snapshot.forEach(doc => messages.push({id: doc.id, ...doc.data()}));
+                messages.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                
+                messageBox.innerHTML = messages.map(m => `
+                    <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300 transform transition-all hover:scale-[1.02]">
+                        <span class="font-bold text-pink-500">${m.name}:</span> ${m.content}
+                    </div>
+                `).join('') || '<div class="text-center text-gray-400 py-4">還沒有留言唷，快來當第一個！</div>';
+            });
+        }
+
+        window.addMessageToCloud = async () => {
+            const nameInput = document.getElementById('userName');
+            const msgInput = document.getElementById('userMsg');
+            const btn = document.getElementById('sendBtn');
+
+            if (!user || !nameInput.value || !msgInput.value) return;
+
+            btn.disabled = true;
+            try {
+                const messagesRef = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+                await addDoc(messagesRef, {
+                    name: nameInput.value,
+                    content: msgInput.value,
+                    createdAt: serverTimestamp()
+                });
+                nameInput.value = '';
+                msgInput.value = '';
+                createHearts();
+            } catch (e) {
+                console.error("雲端儲存失敗:", e);
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        document.getElementById('sendBtn').onclick = window.addMessageToCloud;
+    </script>
+
+    <script>
+        // 互動特效 & 遊戲邏輯
+        function createHearts(e) {
+            const x = e ? e.clientX : window.innerWidth / 2;
+            const y = e ? e.clientY : window.innerHeight / 2;
+            for (let i = 0; i < 15; i++) {
+                const heart = document.createElement('div');
+                heart.innerHTML = ['💖', '💗', '✨', '🌸', '🍭', '🍓'][Math.floor(Math.random() * 6)];
+                heart.className = 'heart-particle text-3xl';
+                heart.style.left = x + (Math.random() - 0.5) * 180 + 'px';
+                heart.style.top = y + (Math.random() - 0.5) * 180 + 'px';
+                document.body.appendChild(heart);
+                setTimeout(() => heart.remove(), 2000);
+            }
+        }
+
+        const modal = document.getElementById('gameModal');
+        const content = document.getElementById('gameContent');
+        let gameTimer = null;
+
+        window.openGame = (type) => {
+            modal.classList.remove('hidden');
+            content.innerHTML = '';
+            if (type === 'catcher') initCatcherGame();
+            if (type === 'memory') initMemoryGame();
+            if (type === 'pop') initPopGame();
+        };
+
+        window.closeGame = () => {
+            modal.classList.add('hidden');
+            if (gameTimer) clearInterval(gameTimer);
+        };
+
+        // 遊戲 1: 接糖果
+        function initCatcherGame() {
+            content.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-pink-500 mb-6">接糖果大挑戰 🍬</h2><div id="gameArea" class="relative w-full h-80 bg-blue-50 rounded-3xl overflow-hidden cursor-crosshair"><div id="basket" class="absolute bottom-4 left-1/2 -translate-x-1/2 text-6xl select-none">🧺</div><div id="score" class="absolute top-4 left-4 font-bold text-pink-500 bg-white/90 px-4 py-2 rounded-full shadow-sm">得分: 0</div></div></div>`;
+            const area = document.getElementById('gameArea');
+            const basket = document.getElementById('basket');
+            const scoreDisplay = document.getElementById('score');
+            let score = 0, basketX = area.offsetWidth / 2;
+
+            const handleMove = (x) => {
+                if (x >= 0 && x <= area.offsetWidth) {
+                    basketX = x;
+                    basket.style.left = x + 'px';
+                }
+            };
+            area.onmousemove = (e) => handleMove(e.clientX - area.getBoundingClientRect().left);
+            area.ontouchmove = (e) => { e.preventDefault(); handleMove(e.touches[0].clientX - area.getBoundingClientRect().left); };
+
+            gameTimer = setInterval(() => {
+                const candy = document.createElement('div');
+                candy.innerHTML = ['🍭', '🍬', '🍩', '🍪', '🍓'][Math.floor(Math.random() * 5)];
+                candy.className = 'absolute text-4xl';
+                candy.style.top = '-50px';
+                candy.style.left = Math.random() * (area.offsetWidth - 40) + 'px';
+                area.appendChild(candy);
+                let top = -50;
+                const fall = setInterval(() => {
+                    top += 4; candy.style.top = top + 'px';
+                    if (top > area.offsetHeight - 80 && Math.abs(parseFloat(candy.style.left) - basketX + 25) < 50) {
+                        score++; scoreDisplay.innerText = `得分: ${score}`;
+                        candy.remove(); clearInterval(fall);
+                    }
+                    if (top > area.offsetHeight) { candy.remove(); clearInterval(fall); }
+                }, 20);
+            }, 750);
+        }
+
+        // 遊戲 2: 記憶對對碰
+        function initMemoryGame() {
+            const emojis = ['🐱', '🐶', '🐰', '🐼', '🐨', '🐸', '🦁', '🐷'];
+            const cards = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
+            content.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-pink-500 mb-8">記憶對對碰 🧩</h2><div class="grid grid-cols-4 gap-4" id="cardGrid"></div><div id="memScore" class="mt-8 font-bold text-pink-500 text-2xl">已配對: 0 / 8</div></div>`;
+            const grid = document.getElementById('cardGrid');
+            let flipped = [], matched = 0;
+            cards.forEach(emoji => {
+                const card = document.createElement('div');
+                card.className = 'memory-card h-24';
+                card.innerHTML = `<div class="memory-card-inner"><div class="card-back">❓</div><div class="card-front">${emoji}</div></div>`;
+                card.onclick = () => {
+                    if (card.classList.contains('flipped') || flipped.length === 2) return;
+                    card.classList.add('flipped'); flipped.push({emoji, card});
+                    if (flipped.length === 2) {
+                        if (flipped[0].emoji === flipped[1].emoji) {
+                            matched++; document.getElementById('memScore').innerText = `已配對: ${matched} / 8`; flipped = [];
+                        } else {
+                            setTimeout(() => { flipped.forEach(f => f.card.classList.remove('flipped')); flipped = []; }, 800);
+                        }
+                    }
+                };
+                grid.appendChild(card);
+            });
+        }
+
+        // 遊戲 3: 戳氣球
+        function initPopGame() {
+            content.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-pink-500 mb-6">彩色戳戳樂 🎈</h2><div id="popArea" class="relative w-full h-80 bg-pink-50 rounded-3xl overflow-hidden cursor-pointer"><div id="popScore" class="absolute top-4 left-4 font-bold text-pink-500 bg-white/90 px-4 py-2 rounded-full shadow-sm">分數: 0</div></div></div>`;
+            const area = document.getElementById('popArea');
+            let score = 0;
+            gameTimer = setInterval(() => {
+                const bubble = document.createElement('div');
+                const size = 60;
+                bubble.className = 'absolute rounded-full flex items-center justify-center cursor-pointer text-3xl shadow-sm active:scale-90';
+                bubble.style.width = size + 'px'; bubble.style.height = size + 'px';
+                bubble.style.backgroundColor = `hsl(${Math.random() * 360}, 80%, 85%)`;
+                bubble.style.left = Math.random() * (area.offsetWidth - size) + 'px';
+                bubble.style.top = Math.random() * (area.offsetHeight - size) + 'px';
+                bubble.innerHTML = '🎈';
+                bubble.onclick = (e) => {
+                    e.stopPropagation(); score += 10;
+                    document.getElementById('popScore').innerText = `分數: ${score}`;
+                    bubble.innerHTML = '💥'; bubble.style.background = 'none';
+                    setTimeout(() => bubble.remove(), 200);
+                };
+                area.appendChild(bubble);
+                setTimeout(() => { if(bubble) bubble.remove(); }, 2000);
+            }, 600);
+        }
+    </script>
+</body>
+</html>
