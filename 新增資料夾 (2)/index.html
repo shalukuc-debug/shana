@@ -195,7 +195,7 @@
     </section>
 
     <footer class="py-12 text-center text-gray-400 text-sm">
-        <p>© 2025 鄭向晴小可愛專屬空間 | 雲端即時互動版 ❤️</p>
+        <p>© 2025 鄭向晴小可愛專屬空間 | 已優化 GitHub Pages 兼容性 ❤️</p>
     </footer>
 
     <!-- Firebase SDK & 雲端邏輯 -->
@@ -204,28 +204,38 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        let user = null;
-
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
+        // 外部環境安全檢查
+        let db, auth, appId;
+        try {
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            if (firebaseConfig.apiKey) {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                initAuth();
             } else {
-                await signInAnonymously(auth);
+                throw new Error("無雲端設定");
             }
-        };
+        } catch (e) {
+            console.warn("目前不在 Canvas 環境或無 Firebase 設定，改為單機模式運作。");
+            document.getElementById('loadingMsg').innerText = "本機預覽模式 (雲端留言功能已關閉)";
+        }
 
-        initAuth().catch(console.error);
-
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-            if (user) startListeningMessages();
-        });
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                onAuthStateChanged(auth, (u) => {
+                    if (u) startListeningMessages();
+                });
+            } catch (e) {
+                console.error("驗證失敗:", e);
+            }
+        }
 
         function startListeningMessages() {
             const messageBox = document.getElementById('messageBox');
@@ -244,39 +254,31 @@
                         <span class="font-bold text-pink-500">${m.name}:</span> ${m.content}
                     </div>
                 `).join('') || '<div class="text-center text-gray-400 py-4">還沒有留言唷，快來當第一個！</div>';
-            });
+            }, (err) => console.warn("雲端讀取權限限制"));
         }
 
-        window.addMessageToCloud = async () => {
+        document.getElementById('sendBtn').onclick = async () => {
+            if (!db) {
+                alert("目前為單機模式，留言僅供預覽，無法存入雲端。");
+                return;
+            }
             const nameInput = document.getElementById('userName');
             const msgInput = document.getElementById('userMsg');
-            const btn = document.getElementById('sendBtn');
-
-            if (!user || !nameInput.value || !msgInput.value) return;
-
-            btn.disabled = true;
+            if (!nameInput.value || !msgInput.value) return;
             try {
-                const messagesRef = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
-                await addDoc(messagesRef, {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
                     name: nameInput.value,
                     content: msgInput.value,
                     createdAt: serverTimestamp()
                 });
-                nameInput.value = '';
-                msgInput.value = '';
+                nameInput.value = ''; msgInput.value = '';
                 createHearts();
-            } catch (e) {
-                console.error("雲端儲存失敗:", e);
-            } finally {
-                btn.disabled = false;
-            }
+            } catch (e) { console.error("傳送失敗:", e); }
         };
-
-        document.getElementById('sendBtn').onclick = window.addMessageToCloud;
     </script>
 
     <script>
-        // 互動特效 & 遊戲邏輯
+        // 互動特效 & 遊戲邏輯 (與先前一致)
         function createHearts(e) {
             const x = e ? e.clientX : window.innerWidth / 2;
             const y = e ? e.clientY : window.innerHeight / 2;
@@ -308,43 +310,31 @@
             if (gameTimer) clearInterval(gameTimer);
         };
 
-        // 遊戲 1: 接糖果
         function initCatcherGame() {
             content.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-pink-500 mb-6">接糖果大挑戰 🍬</h2><div id="gameArea" class="relative w-full h-80 bg-blue-50 rounded-3xl overflow-hidden cursor-crosshair"><div id="basket" class="absolute bottom-4 left-1/2 -translate-x-1/2 text-6xl select-none">🧺</div><div id="score" class="absolute top-4 left-4 font-bold text-pink-500 bg-white/90 px-4 py-2 rounded-full shadow-sm">得分: 0</div></div></div>`;
             const area = document.getElementById('gameArea');
             const basket = document.getElementById('basket');
             const scoreDisplay = document.getElementById('score');
             let score = 0, basketX = area.offsetWidth / 2;
-
-            const handleMove = (x) => {
-                if (x >= 0 && x <= area.offsetWidth) {
-                    basketX = x;
-                    basket.style.left = x + 'px';
-                }
-            };
+            const handleMove = (x) => { if (x >= 0 && x <= area.offsetWidth) { basketX = x; basket.style.left = x + 'px'; } };
             area.onmousemove = (e) => handleMove(e.clientX - area.getBoundingClientRect().left);
-            area.ontouchmove = (e) => { e.preventDefault(); handleMove(e.touches[0].clientX - area.getBoundingClientRect().left); };
-
             gameTimer = setInterval(() => {
                 const candy = document.createElement('div');
-                candy.innerHTML = ['🍭', '🍬', '🍩', '🍪', '🍓'][Math.floor(Math.random() * 5)];
-                candy.className = 'absolute text-4xl';
-                candy.style.top = '-50px';
+                candy.innerHTML = ['🍭', '🍬', '🍩', '🍓'][Math.floor(Math.random() * 4)];
+                candy.className = 'absolute text-4xl'; candy.style.top = '-50px';
                 candy.style.left = Math.random() * (area.offsetWidth - 40) + 'px';
                 area.appendChild(candy);
                 let top = -50;
                 const fall = setInterval(() => {
                     top += 4; candy.style.top = top + 'px';
                     if (top > area.offsetHeight - 80 && Math.abs(parseFloat(candy.style.left) - basketX + 25) < 50) {
-                        score++; scoreDisplay.innerText = `得分: ${score}`;
-                        candy.remove(); clearInterval(fall);
+                        score++; scoreDisplay.innerText = `得分: ${score}`; candy.remove(); clearInterval(fall);
                     }
                     if (top > area.offsetHeight) { candy.remove(); clearInterval(fall); }
                 }, 20);
             }, 750);
         }
 
-        // 遊戲 2: 記憶對對碰
         function initMemoryGame() {
             const emojis = ['🐱', '🐶', '🐰', '🐼', '🐨', '🐸', '🦁', '🐷'];
             const cards = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
@@ -352,8 +342,7 @@
             const grid = document.getElementById('cardGrid');
             let flipped = [], matched = 0;
             cards.forEach(emoji => {
-                const card = document.createElement('div');
-                card.className = 'memory-card h-24';
+                const card = document.createElement('div'); card.className = 'memory-card h-24';
                 card.innerHTML = `<div class="memory-card-inner"><div class="card-back">❓</div><div class="card-front">${emoji}</div></div>`;
                 card.onclick = () => {
                     if (card.classList.contains('flipped') || flipped.length === 2) return;
@@ -361,16 +350,13 @@
                     if (flipped.length === 2) {
                         if (flipped[0].emoji === flipped[1].emoji) {
                             matched++; document.getElementById('memScore').innerText = `已配對: ${matched} / 8`; flipped = [];
-                        } else {
-                            setTimeout(() => { flipped.forEach(f => f.card.classList.remove('flipped')); flipped = []; }, 800);
-                        }
+                        } else { setTimeout(() => { flipped.forEach(f => f.card.classList.remove('flipped')); flipped = []; }, 800); }
                     }
                 };
                 grid.appendChild(card);
             });
         }
 
-        // 遊戲 3: 戳氣球
         function initPopGame() {
             content.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-pink-500 mb-6">彩色戳戳樂 🎈</h2><div id="popArea" class="relative w-full h-80 bg-pink-50 rounded-3xl overflow-hidden cursor-pointer"><div id="popScore" class="absolute top-4 left-4 font-bold text-pink-500 bg-white/90 px-4 py-2 rounded-full shadow-sm">分數: 0</div></div></div>`;
             const area = document.getElementById('popArea');
@@ -378,17 +364,15 @@
             gameTimer = setInterval(() => {
                 const bubble = document.createElement('div');
                 const size = 60;
-                bubble.className = 'absolute rounded-full flex items-center justify-center cursor-pointer text-3xl shadow-sm active:scale-90';
+                bubble.className = 'absolute rounded-full flex items-center justify-center cursor-pointer text-3xl shadow-sm';
                 bubble.style.width = size + 'px'; bubble.style.height = size + 'px';
                 bubble.style.backgroundColor = `hsl(${Math.random() * 360}, 80%, 85%)`;
                 bubble.style.left = Math.random() * (area.offsetWidth - size) + 'px';
                 bubble.style.top = Math.random() * (area.offsetHeight - size) + 'px';
                 bubble.innerHTML = '🎈';
                 bubble.onclick = (e) => {
-                    e.stopPropagation(); score += 10;
-                    document.getElementById('popScore').innerText = `分數: ${score}`;
-                    bubble.innerHTML = '💥'; bubble.style.background = 'none';
-                    setTimeout(() => bubble.remove(), 200);
+                    e.stopPropagation(); score += 10; document.getElementById('popScore').innerText = `分數: ${score}`;
+                    bubble.innerHTML = '💥'; setTimeout(() => bubble.remove(), 200);
                 };
                 area.appendChild(bubble);
                 setTimeout(() => { if(bubble) bubble.remove(); }, 2000);
