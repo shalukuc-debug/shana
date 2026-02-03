@@ -11,6 +11,7 @@
     
     <!-- 基礎 UI 腳本：確保按鈕與登入邏輯即時生效 -->
     <script>
+        // 確保 isAdmin 是全域共享的
         window.isAdmin = false;
 
         function openLogin() { 
@@ -41,10 +42,12 @@
                 document.getElementById('addGalleryBtn')?.classList.remove('hidden');
                 
                 closeLogin();
-                showToast("管理員已登入，現在可以調整照片囉！✨");
+                showToast("管理員已登入！✨");
                 
-                // 觸發模組內的 UI 重新渲染
-                if (window.renderPhotos) window.renderPhotos(window.currentPhotoData);
+                // 核心：登入後通知模組重新渲染照片牆，讓更換按鈕生效
+                if (window.renderPhotos && window.currentPhotoData) {
+                    window.renderPhotos(window.currentPhotoData);
+                }
             } else {
                 alert("密碼不正確，請再試一次。");
             }
@@ -58,7 +61,9 @@
             document.getElementById('logoutBtn')?.classList.add('hidden');
             document.getElementById('addGalleryBtn')?.classList.add('hidden');
             showToast("已登出管理模式。");
-            if (window.renderPhotos) window.renderPhotos(window.currentPhotoData);
+            if (window.renderPhotos && window.currentPhotoData) {
+                window.renderPhotos(window.currentPhotoData);
+            }
         }
 
         function handleImgError(img) {
@@ -106,6 +111,7 @@
             opacity: 0; transition: opacity 0.3s; cursor: pointer; color: white;
             z-index: 20; border-radius: inherit; pointer-events: none; gap: 10px;
         }
+        /* 當 body 有 is-admin 時，滑鼠移入 photo-container 顯示遮罩 */
         body.is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; pointer-events: auto; }
         
         body.is-adjusting .photo-edit-overlay { display: none !important; }
@@ -166,6 +172,7 @@
         <button id="saveTransformBtn" onclick="saveVisualTransform()" class="bg-pink-500 text-white px-8 py-2 rounded-full font-bold shadow-lg hover:bg-pink-600 transition active:scale-95">完成並儲存</button>
     </div>
 
+    <!-- 檔案選取器 -->
     <input type="file" id="filePicker" class="hidden" accept="image/*" multiple>
 
     <nav class="fixed w-full z-50 glass-morphism px-6 py-4 flex justify-between items-center">
@@ -261,8 +268,8 @@
 
     <footer class="py-12 text-center text-gray-400 text-sm">
         <div class="mb-2 space-x-2">
-            <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">正在偵測雲端狀態...</span>
-            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V3</span>
+            <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">偵測中...</span>
+            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V4</span>
         </div>
         <p>© 2025 鄭向晴小可愛 ❤️ | 
             <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline decoration-dotted">管理員登入</button>
@@ -315,7 +322,7 @@
 
         initAuth();
 
-        // 核心渲染邏輯：掛載到 window 供全域登入腳本調用
+        // 核心渲染邏輯：掛載到 window
         window.renderPhotos = function(data) {
             const finalData = data || defaultPhotos;
             window.currentPhotoData = JSON.parse(JSON.stringify(finalData)); 
@@ -363,8 +370,12 @@
             else throw new Error("Cloud unauthenticated");
         }
 
+        // 修正：確實將 triggerFilePicker 掛載到全域，且使用 window.isAdmin 判斷
         window.triggerFilePicker = (target) => {
-            if (!window.isAdmin) return;
+            if (!window.isAdmin) {
+                showToast("請先登入管理員模式喔！");
+                return;
+            }
             window.currentEditingTarget = target;
             const fp = document.getElementById('filePicker');
             if (fp) fp.click();
@@ -392,6 +403,7 @@
             try { 
                 await secureUpdate(newData); 
                 if (statusLabel) statusLabel.innerText = "✅ 同步成功！";
+                showToast("同步成功！記得上傳圖片喔 ✨");
             } catch (err) { alert("同步失敗"); } 
             finally { if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } e.target.value = ''; }
         };
@@ -451,6 +463,7 @@
             const newData = { ...window.currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
             await secureUpdate(newData);
+            showToast("照片已移除。");
         };
 
         function syncMessages() {
