@@ -164,6 +164,14 @@
     </section>
 
     <footer class="py-12 text-center text-gray-400 text-sm">
+        <div class="mb-4 space-x-2">
+            <span id="cloudStatus" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                <span class="w-2 h-2 mr-1 bg-gray-400 rounded-full"></span> 正在連線雲端...
+            </span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                版本: 2026.02.04.1
+            </span>
+        </div>
         <p>© 2025 鄭向晴小可愛專屬空間 ❤️ | 
             <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300">管理模式</button>
             <button onclick="handleLogout()" id="logoutBtn" class="hidden hover:text-red-400">登出管理</button>
@@ -198,11 +206,26 @@
             ]
         };
 
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
+        const updateCloudUI = (connected) => {
+            const status = document.getElementById('cloudStatus');
+            if (connected) {
+                status.innerHTML = '<span class="w-2 h-2 mr-1 bg-green-500 rounded-full"></span> 雲端已連線';
+                status.className = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800";
             } else {
-                await signInAnonymously(auth);
+                status.innerHTML = '<span class="w-2 h-2 mr-1 bg-red-500 rounded-full"></span> 雲端未同步';
+                status.className = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800";
+            }
+        };
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                updateCloudUI(false);
             }
         };
 
@@ -210,6 +233,7 @@
             onAuthStateChanged(auth, (u) => {
                 user = u;
                 if (user) {
+                    updateCloudUI(true);
                     syncPhotos();
                     syncMessages();
                 }
@@ -239,6 +263,7 @@
                 closeLogin();
                 showToast("歡迎回來，管理員！✨");
                 lucide.createIcons();
+                syncPhotos(); // Refresh grid for admin buttons
             } else {
                 alert("密碼錯誤");
             }
@@ -251,6 +276,7 @@
             document.getElementById('logoutBtn').classList.add('hidden');
             document.getElementById('addGalleryBtn').classList.add('hidden');
             showToast("已登出管理模式。");
+            syncPhotos(); // Refresh grid to hide admin buttons
         };
 
         // 照片編輯邏輯
@@ -317,7 +343,6 @@
             });
         }
 
-        // 留言板與愛心邏輯保持不變
         function syncMessages() {
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snap) => {
                 const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
@@ -342,7 +367,6 @@
             createHearts();
         };
 
-        // 初始化圖示
         lucide.createIcons();
     </script>
 
