@@ -6,6 +6,8 @@
     <title>鄭向晴小可愛的個人空間</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+    <!-- 使用 Lucide 圖示 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root { --primary-pink: #ffb7c5; --soft-purple: #e2d1f9; }
         body { font-family: 'Noto Sans TC', sans-serif; background: linear-gradient(135deg, #fff5f7 0%, #f0f4ff 100%); scroll-behavior: smooth; overflow-x: hidden; }
@@ -15,27 +17,51 @@
         .heart-particle { position: absolute; pointer-events: none; animation: flyUp 2s linear forwards; z-index: 100; }
         @keyframes flyUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5); opacity: 0; } }
         .glass-morphism { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        
+        /* 照片編輯遮罩 */
+        .photo-edit-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s; cursor: pointer; color: white;
+            z-index: 10; border-radius: inherit;
+        }
+        .is-admin .photo-edit-overlay { opacity: 0; }
+        .is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; }
+        
         .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fff; transition: all 0.3s ease; }
         .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; min-height: 200px; }
         .gallery-item:hover { transform: translateY(-5px); }
         .gallery-item:hover img { transform: scale(1.1); }
-        .gallery-caption { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white; padding: 10px; font-size: 0.8rem; opacity: 0; transition: opacity 0.3s; text-align: center; }
-        .gallery-item:hover .gallery-caption { opacity: 1; }
-        .admin-panel { display: none; }
-        .admin-active .admin-panel { display: block; }
         
-        /* 自定義提示框樣式 */
         #toast {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
             background: #ff69b4; color: white; padding: 12px 24px; border-radius: 50px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
         #toast.show { opacity: 1; }
+
+        .modal-bg { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
     </style>
 </head>
 <body class="text-gray-800">
 
     <div id="toast">設定已更新！✨</div>
+
+    <!-- 登入彈窗 -->
+    <div id="loginModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-bg">
+        <div class="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl">
+            <h3 class="text-2xl font-bold text-pink-500 mb-6 text-center">管理員登入</h3>
+            <input id="passwordInput" type="password" placeholder="請輸入管理密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300">
+            <div class="flex space-x-2">
+                <button onclick="closeLogin()" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-500 font-bold">取消</button>
+                <button onclick="handleLogin()" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500">登入</button>
+            </div>
+            <p class="text-center text-xs text-gray-400 mt-4">提示：預設密碼為 1234</p>
+        </div>
+    </div>
+
+    <!-- 隱藏的檔案選取器 -->
+    <input type="file" id="filePicker" class="hidden" accept="image/*">
 
     <nav class="fixed w-full z-50 glass-morphism px-6 py-4 flex justify-between items-center">
         <div class="text-2xl font-bold text-pink-500">向晴 🍬</div>
@@ -45,6 +71,9 @@
             <a href="#gallery" class="hover:text-pink-400 transition">甜蜜瞬間</a>
             <a href="#guestbook" class="hover:text-pink-400 transition">悄悄話</a>
         </div>
+        <div id="adminBadge" class="hidden bg-pink-100 text-pink-500 px-3 py-1 rounded-full text-xs font-bold animate-pulse border border-pink-200">
+            管理模式中
+        </div>
     </nav>
 
     <!-- 主視覺區塊 -->
@@ -52,12 +81,18 @@
         <div class="absolute inset-0 pointer-events-none opacity-20">
             <div class="absolute top-20 left-10 text-4xl floating">⭐</div>
             <div class="absolute bottom-20 right-10 text-4xl floating" style="animation-delay: 1s;">🍭</div>
-            <div class="absolute top-40 right-20 text-4xl floating" style="animation-delay: 0.5s;">☁️</div>
         </div>
         <div class="text-center z-10 px-4">
-            <div class="mb-6 inline-block p-4 rounded-full bg-white shadow-xl floating">
+            <div class="mb-6 inline-block p-4 rounded-full bg-white shadow-xl floating relative photo-container">
                 <div class="w-44 h-44 md:w-60 md:h-60 rounded-full overflow-hidden border-8 border-pink-100 bg-pink-50">
                     <img id="img_hero" src="20250206_153614.jpg" alt="向晴大頭照" class="w-full h-full object-cover">
+                </div>
+                <!-- 編輯遮罩 -->
+                <div class="photo-edit-overlay" onclick="triggerFilePicker('hero')">
+                    <div class="text-center">
+                        <i data-lucide="camera" class="mx-auto mb-1"></i>
+                        <p class="text-xs font-bold">更換大頭照</p>
+                    </div>
                 </div>
             </div>
             <h1 class="text-5xl md:text-7xl font-bold text-pink-500 mb-4 cute-title">鄭向晴小可愛</h1>
@@ -85,9 +120,15 @@
                     </div>
                 </div>
             </div>
-            <div class="relative">
+            <div class="relative photo-container">
                 <div class="rounded-3xl overflow-hidden shadow-2xl rotate-2 border-[12px] border-white bg-pink-50">
                     <img id="img_about" src="20250104_193151.jpg" alt="吃草莓的照片" class="w-full h-80 object-cover">
+                </div>
+                <div class="photo-edit-overlay rotate-2" onclick="triggerFilePicker('about')">
+                    <div class="text-center">
+                        <i data-lucide="camera" class="mx-auto mb-1"></i>
+                        <p class="text-xs font-bold">更換照片</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -96,9 +137,14 @@
     <!-- 相簿區塊 -->
     <section id="gallery" class="py-24 bg-white/40 px-6">
         <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">甜蜜瞬間</h2>
-        <p class="text-center text-gray-500 mb-12">記錄我的每一個成長小故事</p>
         <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <!-- 圖片動態載入 -->
+        </div>
+        <!-- 管理模式專用：新增照片按鈕 -->
+        <div id="addGalleryBtn" class="hidden mt-12 text-center">
+            <button onclick="triggerFilePicker('addGallery')" class="bg-pink-100 text-pink-500 border-2 border-dashed border-pink-300 px-8 py-4 rounded-2xl font-bold hover:bg-pink-200 transition">
+                + 新增相簿照片
+            </button>
         </div>
     </section>
 
@@ -107,7 +153,7 @@
         <div class="glass-morphism p-10 rounded-[2.5rem] shadow-xl text-center">
             <h2 class="text-3xl font-bold text-pink-400 mb-8 cute-title">悄悄話牆</h2>
             <div id="messageBox" class="mb-8 space-y-4 max-h-80 overflow-y-auto pr-2 text-sm text-left">
-                <div class="text-center py-4 text-gray-400" id="loadingMsg">正在連線至雲端...</div>
+                <div class="text-center py-4 text-gray-400" id="loadingMsg">載入中...</div>
             </div>
             <div class="flex flex-col space-y-4">
                 <input id="userName" type="text" placeholder="你的稱呼" class="px-5 py-3 rounded-full border border-pink-100 outline-none">
@@ -117,42 +163,18 @@
         </div>
     </section>
 
-    <!-- 雲端照片管理後台 -->
-    <div id="adminContainer" class="admin-panel py-10 bg-gray-900 text-white px-6">
-        <div class="max-w-4xl mx-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-pink-400">📸 雲端照片管理後台</h3>
-                <button onclick="resetToLocal()" class="text-xs bg-red-900/50 px-3 py-1 rounded border border-red-500 text-red-200 hover:bg-red-800">重設為初始照片</button>
-            </div>
-            
-            <div class="space-y-4 text-sm">
-                <div>
-                    <label class="block mb-1 text-gray-400">大頭貼照片：</label>
-                    <input id="input_hero" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300 outline-none focus:border-pink-500">
-                </div>
-                <div>
-                    <label class="block mb-1 text-gray-400">關於我照片：</label>
-                    <input id="input_about" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300 outline-none focus:border-pink-500">
-                </div>
-                <div>
-                    <label class="block mb-1 text-gray-400">相簿照片 (每行一個檔名或網址)：</label>
-                    <textarea id="input_gallery" rows="10" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300 outline-none focus:border-pink-500"></textarea>
-                </div>
-                <button id="saveAdminBtn" onclick="savePhotoConfig()" class="bg-pink-500 px-8 py-3 rounded-full font-bold hover:bg-pink-600 transition shadow-lg disabled:opacity-50">
-                    儲存變更至雲端
-                </button>
-            </div>
-        </div>
-    </div>
-
     <footer class="py-12 text-center text-gray-400 text-sm">
-        <p>© 2025 鄭向晴小可愛專屬空間 ❤️ | <button onclick="toggleAdmin()" class="hover:text-pink-300">管理模式</button></p>
+        <p>© 2025 鄭向晴小可愛專屬空間 ❤️ | 
+            <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300">管理模式</button>
+            <button onclick="handleLogout()" id="logoutBtn" class="hidden hover:text-red-400">登出管理</button>
+        </p>
     </footer>
 
+    <!-- Firebase 邏輯 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
@@ -162,6 +184,9 @@
         const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'photoConfig', 'default');
         
         let user = null;
+        let isAdmin = false;
+        let currentEditingTarget = null;
+        let currentPhotoData = null;
 
         const defaultPhotos = {
             hero: '20250206_153614.jpg',
@@ -169,10 +194,7 @@
             gallery: [
                 '20250205_194430.jpg', '20250129_082834.jpg', '20250112_162245.jpg',
                 '20250104_172109.jpg', '20250104_172053.jpg', '20250104_171603.jpg',
-                '20250104_171444.jpg', '20250104_171450.jpg', '20250714_111924(0).jpg',
-                '20250720_143703.jpg', '20250803_172158.jpg', '20250815_174653.jpg',
-                '20250902_181256.jpg', '20250907_132712.jpg', '20251018_120229.jpg',
-                '20251018_151029.jpg', '20251023_155406.jpg', '20251108_081246.jpg'
+                '20250104_171444.jpg', '20250104_171450.jpg'
             ]
         };
 
@@ -201,70 +223,105 @@
             setTimeout(() => t.classList.remove('show'), 3000);
         };
 
-        const formatPath = (p) => {
-            if (!p) return "";
-            if (p.startsWith('http') || p.startsWith('data:')) return p;
-            return `./${p}`;
+        // 管理員功能
+        const ADMIN_PWD = "1234";
+        window.openLogin = () => document.getElementById('loginModal').classList.remove('hidden');
+        window.closeLogin = () => document.getElementById('loginModal').classList.add('hidden');
+        window.handleLogin = () => {
+            const pwd = document.getElementById('passwordInput').value;
+            if (pwd === ADMIN_PWD) {
+                isAdmin = true;
+                document.body.classList.add('is-admin');
+                document.getElementById('adminBadge').classList.remove('hidden');
+                document.getElementById('loginBtn').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.remove('hidden');
+                document.getElementById('addGalleryBtn').classList.remove('hidden');
+                closeLogin();
+                showToast("歡迎回來，管理員！✨");
+                lucide.createIcons();
+            } else {
+                alert("密碼錯誤");
+            }
+        };
+        window.handleLogout = () => {
+            isAdmin = false;
+            document.body.classList.remove('is-admin');
+            document.getElementById('adminBadge').classList.add('hidden');
+            document.getElementById('loginBtn').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('addGalleryBtn').classList.add('hidden');
+            showToast("已登出管理模式。");
+        };
+
+        // 照片編輯邏輯
+        window.triggerFilePicker = (target) => {
+            if (!isAdmin) return;
+            currentEditingTarget = target;
+            document.getElementById('filePicker').click();
+        };
+
+        document.getElementById('filePicker').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file || !currentPhotoData) return;
+            
+            const filename = file.name;
+            const newData = { ...currentPhotoData };
+
+            if (currentEditingTarget === 'hero') newData.hero = filename;
+            else if (currentEditingTarget === 'about') newData.about = filename;
+            else if (currentEditingTarget === 'addGallery') {
+                newData.gallery = [...(newData.gallery || []), filename];
+            } else if (currentEditingTarget.startsWith('gallery_')) {
+                const index = parseInt(currentEditingTarget.split('_')[1]);
+                newData.gallery[index] = filename;
+            }
+
+            try {
+                await setDoc(configRef, newData);
+                showToast(`已更新為：${filename} ✨`);
+            } catch (err) {
+                showToast("儲存至雲端失敗");
+            }
+            e.target.value = ''; // Reset
+        };
+
+        window.deleteGalleryItem = async (index) => {
+            if (!confirm("確定要刪除這張照片嗎？")) return;
+            const newData = { ...currentPhotoData };
+            newData.gallery.splice(index, 1);
+            await setDoc(configRef, newData);
+            showToast("照片已移除。");
         };
 
         function syncPhotos() {
             onSnapshot(configRef, (snap) => {
-                let data = snap.exists() ? snap.data() : defaultPhotos;
-                if (!data.hero) data = defaultPhotos;
+                currentPhotoData = snap.exists() ? snap.data() : defaultPhotos;
+                const data = currentPhotoData;
 
-                document.getElementById('img_hero').src = formatPath(data.hero);
-                document.getElementById('img_about').src = formatPath(data.about);
-                
-                document.getElementById('input_hero').value = data.hero;
-                document.getElementById('input_about').value = data.about;
-                document.getElementById('input_gallery').value = (data.gallery || []).join('\n');
+                document.getElementById('img_hero').src = `./${data.hero}`;
+                document.getElementById('img_about').src = `./${data.about}`;
 
                 const grid = document.getElementById('gallery_grid');
-                grid.innerHTML = (data.gallery || []).map(url => `
-                    <div class="gallery-item aspect-square shadow-sm">
-                        <img src="${formatPath(url)}" class="w-full h-full object-cover" onerror="this.parentElement.style.display='none';">
-                        <div class="gallery-caption">✨</div>
+                grid.innerHTML = (data.gallery || []).map((url, idx) => `
+                    <div class="gallery-item aspect-square shadow-sm photo-container relative">
+                        <img src="./${url}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400?text=Wait+Upload'">
+                        <!-- 管理遮罩 -->
+                        <div class="photo-edit-overlay flex-col gap-2" onclick="triggerFilePicker('gallery_${idx}')">
+                            <i data-lucide="refresh-cw" class="w-6 h-6"></i>
+                            <span class="text-xs font-bold">更換照片</span>
+                            ${isAdmin ? `<button onclick="event.stopPropagation(); deleteGalleryItem(${idx})" class="mt-4 bg-red-500/80 px-3 py-1 rounded-full text-[10px]">刪除照片</button>` : ''}
+                        </div>
                     </div>
                 `).join('');
+                if (isAdmin) lucide.createIcons();
             });
         }
 
-        window.savePhotoConfig = async () => {
-            if (!user) return;
-            const btn = document.getElementById('saveAdminBtn');
-            const hero = document.getElementById('input_hero').value.trim();
-            const about = document.getElementById('input_about').value.trim();
-            const gallery = document.getElementById('input_gallery').value.split('\n').map(l => l.trim()).filter(l => l !== '');
-            
-            btn.disabled = true;
-            btn.innerText = "儲存中...";
-
-            try {
-                await setDoc(configRef, { hero, about, gallery });
-                showToast("雲端照片設定已更新！✨");
-            } catch (e) { 
-                showToast("儲存失敗，請檢查權限。");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "儲存變更至雲端";
-            }
-        };
-
-        window.resetToLocal = async () => {
-            if (confirm("確定要重設為初始照片嗎？")) {
-                try {
-                    await deleteDoc(configRef);
-                    showToast("已重設為初始設定。");
-                    location.reload();
-                } catch (e) { showToast("重設失敗"); }
-            }
-        };
-
+        // 留言板與愛心邏輯保持不變
         function syncMessages() {
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snap) => {
                 const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
-                const msgs = [];
-                snap.forEach(doc => msgs.push(doc.data()));
+                const msgs = []; snap.forEach(doc => msgs.push(doc.data()));
                 msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                 document.getElementById('messageBox').innerHTML = msgs.map(m => `
                     <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300">
@@ -275,25 +332,21 @@
         }
 
         document.getElementById('sendBtn').onclick = async () => {
-            const btn = document.getElementById('sendBtn');
             const n = document.getElementById('userName').value, c = document.getElementById('userMsg').value;
             if (!user || !n || !c) return;
-            btn.disabled = true;
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
-                    name: n, content: c, createdAt: serverTimestamp()
-                });
-                document.getElementById('userName').value = '';
-                document.getElementById('userMsg').value = '';
-                createHearts();
-            } finally {
-                btn.disabled = false;
-            }
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+                name: n, content: c, createdAt: serverTimestamp()
+            });
+            document.getElementById('userName').value = '';
+            document.getElementById('userMsg').value = '';
+            createHearts();
         };
+
+        // 初始化圖示
+        lucide.createIcons();
     </script>
 
     <script>
-        function toggleAdmin() { document.body.classList.toggle('admin-active'); window.scrollTo(0, document.body.scrollHeight); }
         function createHearts(e) {
             const x = e ? e.clientX : window.innerWidth/2, y = e ? e.clientY : window.innerHeight/2;
             for(let i=0; i<15; i++) {
