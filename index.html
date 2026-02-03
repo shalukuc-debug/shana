@@ -27,19 +27,18 @@
         }
         body.is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; pointer-events: auto; }
         
-        /* 調整模式激活時的特效：讓框框外變半透明 */
+        /* 調整模式激活時的特效 */
         body.is-adjusting .photo-edit-overlay { display: none !important; }
         body.is-adjusting .photo-container.adjust-mode { z-index: 100; }
         body.is-adjusting .adjust-mode .overflow-hidden { overflow: visible !important; }
         body.is-adjusting .adjust-mode img { opacity: 0.6; }
-        /* 亮區代表實際會顯示的範圍 */
         .adjust-highlight {
             position: absolute; inset: 0; border: 4px solid #ff69b4; 
             box-shadow: 0 0 0 9999px rgba(0,0,0,0.4); z-index: 10; pointer-events: none;
             border-radius: inherit;
         }
 
-        .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fce7f3; transition: all 0.3s ease; min-height: 150px; }
+        .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fce7f3; transition: all 0.3s ease; min-height: 200px; display: flex; align-items: center; justify-content: center; }
         .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; }
         
         /* 調整模式專用控制項 */
@@ -57,6 +56,8 @@
         }
         #toast.show { opacity: 1; }
         .modal-bg { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+        
+        .loading-placeholder { color: #ffb7c5; font-size: 12px; font-weight: bold; text-align: center; padding: 20px; }
     </style>
 </head>
 <body class="text-gray-800">
@@ -65,29 +66,25 @@
 
     <!-- 登入彈窗 -->
     <div id="loginModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-bg">
-        <div class="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl">
-            <h3 class="text-2xl font-bold text-pink-500 mb-6 text-center">管理員登入</h3>
-            <input id="passwordInput" type="password" placeholder="管理密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300">
+        <div class="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl text-center">
+            <h3 class="text-2xl font-bold text-pink-500 mb-6">管理員登入</h3>
+            <input id="passwordInput" type="password" placeholder="請輸入密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300">
             <div class="flex space-x-2">
                 <button onclick="closeLogin()" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-500 font-bold">取消</button>
-                <button id="loginConfirmBtn" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500 transition active:scale-95">登入</button>
+                <button id="loginConfirmBtn" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500">登入</button>
             </div>
-            <p class="text-center text-[10px] text-gray-400 mt-4 italic">請輸入專屬密碼以開啟照片調整功能</p>
+            <p class="text-[10px] text-gray-400 mt-4">預設密碼為 1234</p>
         </div>
     </div>
 
     <!-- 調整中的控制浮窗 -->
     <div id="adjustToolbar" class="adjust-controls hidden">
         <div class="flex flex-col items-center">
-            <span class="text-[10px] text-pink-500 font-bold mb-1 uppercase tracking-widest">縮放比例</span>
-            <div class="flex items-center gap-3">
-                <i data-lucide="minus" class="w-4 h-4 text-gray-400"></i>
-                <input type="range" id="scaleSlider" min="0.5" max="5" step="0.01" value="1" class="w-40 accent-pink-500">
-                <i data-lucide="plus" class="w-4 h-4 text-gray-400"></i>
-            </div>
+            <span class="text-[10px] text-pink-500 font-bold mb-1 uppercase">縮放</span>
+            <input type="range" id="scaleSlider" min="0.5" max="5" step="0.01" value="1" class="w-40 accent-pink-500">
         </div>
         <div class="h-8 w-[1px] bg-gray-200 mx-2"></div>
-        <button onclick="saveVisualTransform()" class="bg-pink-500 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-pink-600 transition active:scale-95">完成儲存</button>
+        <button onclick="saveVisualTransform()" class="bg-pink-500 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-pink-600 transition">完成儲存</button>
     </div>
 
     <input type="file" id="filePicker" class="hidden" accept="image/*" multiple>
@@ -101,7 +98,7 @@
             <a href="#guestbook" class="hover:text-pink-400 transition">悄悄話</a>
         </div>
         <div id="adminBadge" class="hidden bg-pink-100 text-pink-500 px-3 py-1 rounded-full text-xs font-bold animate-pulse border border-pink-200">
-            管理員模式
+            管理模式中
         </div>
     </nav>
 
@@ -109,8 +106,8 @@
     <section id="home" class="min-h-screen flex flex-col items-center justify-center pt-20 overflow-hidden relative">
         <div class="text-center z-10 px-4">
             <div class="mb-6 inline-block p-4 rounded-full bg-white shadow-xl floating relative photo-container" id="hero_container">
-                <div class="w-44 h-44 md:w-64 md:h-64 rounded-full overflow-hidden border-8 border-pink-100 bg-pink-50 relative" id="hero_frame">
-                    <img id="img_hero" src="" alt="大頭照" class="w-full h-full object-cover origin-center" draggable="false">
+                <div class="w-44 h-44 md:w-64 md:h-64 rounded-full overflow-hidden border-8 border-pink-100 bg-pink-50 relative flex items-center justify-center" id="hero_frame">
+                    <img id="img_hero" src="" alt="載入中" class="w-full h-full object-cover origin-center" draggable="false" onerror="handleImgError(this)">
                     <div id="hero_highlight" class="adjust-highlight hidden"></div>
                 </div>
                 <div class="photo-edit-overlay">
@@ -131,7 +128,7 @@
         <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">關於小可愛</h2>
         <div class="grid md:grid-cols-2 gap-12 items-center">
             <div class="glass-morphism p-10 rounded-3xl shadow-sm leading-relaxed text-gray-700">
-                <p class="text-xl mb-6 font-medium">嗨！我是向晴，大家公認的小可愛。我喜歡看書、彈琴，也喜歡和家人到處去冒險吃美食！</p>
+                <p class="text-xl mb-6 font-medium text-center md:text-left">嗨！我是向晴，大家公認的小可愛。我喜歡看書、彈琴，也喜歡和家人到處去冒險吃美食！</p>
                 <div class="flex space-x-4">
                     <div class="bg-white/80 p-4 rounded-2xl shadow-sm border border-pink-50 flex-1 text-center">
                         <span class="block text-3xl">🍓</span><span class="text-sm font-bold text-pink-400">草莓派</span>
@@ -142,8 +139,8 @@
                 </div>
             </div>
             <div class="relative photo-container" id="about_container">
-                <div class="rounded-3xl overflow-hidden shadow-2xl rotate-2 border-[12px] border-white bg-pink-50 relative h-80" id="about_frame">
-                    <img id="img_about" src="" alt="關於我照片" class="w-full h-full object-cover origin-center" draggable="false">
+                <div class="rounded-3xl overflow-hidden shadow-2xl rotate-2 border-[12px] border-white bg-pink-50 relative h-80 flex items-center justify-center" id="about_frame">
+                    <img id="img_about" src="" alt="載入中" class="w-full h-full object-cover origin-center" draggable="false" onerror="handleImgError(this)">
                     <div id="about_highlight" class="adjust-highlight hidden"></div>
                 </div>
                 <div class="photo-edit-overlay rotate-2">
@@ -157,11 +154,14 @@
     <!-- 相簿 -->
     <section id="gallery" class="py-24 bg-white/40 px-6">
         <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">甜蜜瞬間</h2>
-        <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+        <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- 動態載入 -->
+        </div>
         <div id="addGalleryBtn" class="hidden mt-12 text-center">
-            <button onclick="triggerFilePicker('addGallery')" class="bg-pink-500 text-white px-10 py-4 rounded-2xl font-bold shadow-lg hover:bg-pink-600 transition">
-                一次選取多張照片新增
+            <button id="batchAddBtn" onclick="triggerFilePicker('addGallery')" class="bg-pink-500 text-white px-10 py-4 rounded-2xl font-bold shadow-lg hover:bg-pink-600 transition flex items-center mx-auto">
+                <i data-lucide="plus-circle" class="mr-2"></i> 一次選取多張照片新增
             </button>
+            <p id="uploadStatus" class="text-xs text-pink-400 mt-4 font-bold"></p>
         </div>
     </section>
 
@@ -170,26 +170,37 @@
         <div class="glass-morphism p-10 rounded-[2.5rem] shadow-xl text-center">
             <h2 class="text-3xl font-bold text-pink-400 mb-8 cute-title">悄悄話牆</h2>
             <div id="messageBox" class="mb-8 space-y-4 max-h-80 overflow-y-auto pr-2 text-sm text-left">
-                <div class="text-center py-4 text-gray-400" id="loadingMsg">載入中...</div>
+                <div class="text-center py-4 text-gray-400" id="loadingMsg">載入留言中...</div>
             </div>
             <div class="flex flex-col space-y-4">
                 <input id="userName" type="text" placeholder="你的稱呼" class="px-5 py-3 rounded-full border border-pink-100 outline-none">
                 <textarea id="userMsg" rows="3" placeholder="想對向晴說什麼？" class="px-5 py-3 rounded-3xl border border-pink-100 outline-none"></textarea>
-                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg transition">送出留言</button>
+                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg">送出留言</button>
             </div>
         </div>
     </section>
 
     <footer class="py-12 text-center text-gray-400 text-sm">
+        <div class="mb-2 space-x-2">
+            <span id="cloudStatus" class="text-[10px] text-gray-300">正在準備連線...</span>
+        </div>
         <p>© 2025 鄭向晴小可愛 ❤️ | 
-            <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline decoration-dotted">管理員登入</button>
-            <button onclick="handleLogout()" id="logoutBtn" class="hidden hover:text-red-400">登出管理</button>
+            <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline decoration-dotted">管理模式</button>
+            <button onclick="handleLogout()" id="logoutBtn" class="hidden hover:text-red-400">登出</button>
         </p>
     </footer>
 
     <script>
+        // 基礎 UI
         function openLogin() { document.getElementById('loginModal').classList.remove('hidden'); }
         function closeLogin() { document.getElementById('loginModal').classList.add('hidden'); document.getElementById('passwordInput').value = ''; }
+        function handleImgError(img) {
+            img.style.display = 'none';
+            const p = document.createElement('div');
+            p.className = 'loading-placeholder';
+            p.innerText = '等待照片上傳 GitHub';
+            img.parentElement.appendChild(p);
+        }
     </script>
 
     <script type="module">
@@ -197,26 +208,22 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        let db, auth, appId, configRef;
         const GITHUB_URL = "https://shalukuc-debug.github.io/shana/";
+        let db, auth, appId, configRef;
+        let currentPhotoData = null;
+        let isAdmin = false;
 
         const formatPath = (p) => {
             if (!p) return "";
             if (p.startsWith('http') || p.startsWith('data:')) return p;
-            if (!window.location.hostname.includes('github.io')) return GITHUB_URL + p;
-            return p;
+            return !window.location.hostname.includes('github.io') ? GITHUB_URL + p : p;
         };
 
-        // 預設資料
         const defaultPhotos = {
             hero: '20250206_153614.jpg', heroStyle: { scale: 1, x: 0, y: 0 },
             about: '20250104_193151.jpg', aboutStyle: { scale: 1, x: 0, y: 0 },
             gallery: ['20250205_194430.jpg', '20250129_082834.jpg', '20250112_162245.jpg']
         };
-
-        let user = null;
-        let isAdmin = false;
-        let currentPhotoData = defaultPhotos;
 
         // Firebase 初始化
         try {
@@ -228,140 +235,24 @@
                 appId = typeof __app_id !== 'undefined' ? __app_id : 'default-id';
                 configRef = doc(db, 'artifacts', appId, 'public', 'data', 'photoConfig', 'default');
                 initAuth();
-            } else { renderPhotos(null); }
-        } catch (e) { renderPhotos(null); }
+            } else { renderPhotos(defaultPhotos); }
+        } catch (e) { renderPhotos(defaultPhotos); }
 
         async function initAuth() {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
                 onAuthStateChanged(auth, (u) => { 
-                    user = u; 
-                    if (user) { 
+                    if (u) { 
+                        document.getElementById('cloudStatus').innerText = "雲端同步已啟動 ✔️";
                         syncPhotos(); 
                         syncMessages(); 
                     } 
                 });
-            } catch (e) { console.error("Firebase Auth Error", e); }
+            } catch (e) { console.error(e); }
         }
 
-        // --- 登入邏輯 ---
-        function performLogin() {
-            const pwd = document.getElementById('passwordInput').value;
-            if (pwd === "1234") {
-                isAdmin = true;
-                document.body.classList.add('is-admin');
-                document.getElementById('adminBadge').classList.remove('hidden');
-                document.getElementById('loginBtn').classList.add('hidden');
-                document.getElementById('logoutBtn').classList.remove('hidden');
-                document.getElementById('addGalleryBtn').classList.remove('hidden');
-                closeLogin();
-                showToast("管理員已成功登入！✨");
-                renderPhotos(currentPhotoData);
-            } else {
-                alert("密碼不正確，請再試一次。");
-            }
-        }
-
-        document.getElementById('loginConfirmBtn').onclick = performLogin;
-        document.getElementById('passwordInput').onkeypress = (e) => { if (e.key === 'Enter') performLogin(); };
-
-        window.handleLogout = () => {
-            isAdmin = false;
-            document.body.classList.remove('is-admin');
-            document.getElementById('adminBadge').classList.add('hidden');
-            document.getElementById('loginBtn').classList.remove('hidden');
-            document.getElementById('logoutBtn').classList.add('hidden');
-            document.getElementById('addGalleryBtn').classList.add('hidden');
-            showToast("已登出管理模式。");
-            renderPhotos(currentPhotoData);
-        };
-
-        // --- 拖曳調整邏輯 ---
-        let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
-
-        window.enterAdjustMode = (type) => {
-            adjustState.target = type;
-            const style = currentPhotoData[`${type}Style`] || { scale: 1, x: 0, y: 0 };
-            adjustState.currentX = style.x;
-            adjustState.currentY = style.y;
-            adjustState.scale = style.scale;
-
-            document.body.classList.add('is-adjusting');
-            document.getElementById(`${type}_container`).classList.add('adjust-mode');
-            document.getElementById(`${type}_highlight`).classList.remove('hidden');
-            document.getElementById('adjustToolbar').classList.remove('hidden');
-            
-            const slider = document.getElementById('scaleSlider');
-            slider.value = adjustState.scale;
-            slider.oninput = (e) => { adjustState.scale = parseFloat(e.target.value); updateTransform(); };
-
-            const img = document.getElementById(`img_${type}`);
-            img.style.cursor = 'move';
-            img.onmousedown = startDrag;
-            img.ontouchstart = startDrag;
-            
-            showToast("拖曳照片決定顯示位置，滑桿調整縮放");
-        };
-
-        function startDrag(e) {
-            adjustState.isDragging = true;
-            const event = e.touches ? e.touches[0] : e;
-            adjustState.startX = event.clientX - adjustState.currentX;
-            adjustState.startY = event.clientY - adjustState.currentY;
-            window.onmousemove = drag;
-            window.ontouchmove = drag;
-            window.onmouseup = endDrag;
-            window.ontouchend = endDrag;
-            e.preventDefault();
-        }
-
-        function drag(e) {
-            if (!adjustState.isDragging) return;
-            const event = e.touches ? e.touches[0] : e;
-            adjustState.currentX = event.clientX - adjustState.startX;
-            adjustState.currentY = event.clientY - adjustState.startY;
-            updateTransform();
-        }
-
-        function endDrag() { adjustState.isDragging = false; window.onmousemove = null; window.ontouchmove = null; }
-
-        function updateTransform() {
-            const img = document.getElementById(`img_${adjustState.target}`);
-            if (img) {
-                img.style.objectFit = "contain";
-                img.style.width = "auto";
-                img.style.height = "auto";
-                img.style.minWidth = "100%";
-                img.style.minHeight = "100%";
-                img.style.transform = `translate3d(${adjustState.currentX}px, ${adjustState.currentY}px, 0) scale(${adjustState.scale})`;
-            }
-        }
-
-        window.saveVisualTransform = async () => {
-            const type = adjustState.target;
-            const newData = { ...currentPhotoData };
-            newData[`${type}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
-            
-            // 安全檢查：確保身分驗證完成
-            if (!auth.currentUser) {
-                showToast("尚未連線到雲端，請稍後再試。");
-                return;
-            }
-
-            try {
-                await setDoc(configRef, newData);
-                document.body.classList.remove('is-adjusting');
-                document.querySelectorAll('.adjust-mode').forEach(el => el.classList.remove('adjust-mode'));
-                document.querySelectorAll('.adjust-highlight').forEach(el => el.classList.add('hidden'));
-                document.getElementById('adjustToolbar').classList.add('hidden');
-                showToast("位置已儲存至雲端！✨");
-            } catch (e) { 
-                console.error("Save Style Error", e);
-                showToast("同步失敗，請重新整理網頁再試。"); 
-            }
-        };
-
+        // 渲染照片
         function renderPhotos(data) {
             const finalData = data || defaultPhotos;
             currentPhotoData = finalData;
@@ -370,46 +261,62 @@
                 const img = document.getElementById(id);
                 if (style && img) {
                     img.style.objectFit = "contain";
-                    img.style.width = "auto";
-                    img.style.height = "auto";
-                    img.style.minWidth = "100%";
-                    img.style.minHeight = "100%";
+                    img.style.minWidth = "100%"; img.style.minHeight = "100%";
                     img.style.transform = `translate3d(${style.x}px, ${style.y}px, 0) scale(${style.scale})`;
                 }
             };
 
             const hImg = document.getElementById('img_hero');
-            if (hImg) {
-                hImg.src = formatPath(finalData.hero);
-                applyStyle('img_hero', finalData.heroStyle);
-            }
+            if (hImg) { hImg.src = formatPath(finalData.hero); applyStyle('img_hero', finalData.heroStyle); }
 
             const aImg = document.getElementById('img_about');
-            if (aImg) {
-                aImg.src = formatPath(finalData.about);
-                applyStyle('img_about', finalData.aboutStyle);
-            }
+            if (aImg) { aImg.src = formatPath(finalData.about); applyStyle('img_about', finalData.aboutStyle); }
 
             const grid = document.getElementById('gallery_grid');
             if (grid) {
                 const uniqueGallery = [...new Set(finalData.gallery || [])];
                 grid.innerHTML = uniqueGallery.map((name, idx) => `
-                    <div class="gallery-item aspect-square shadow-sm photo-container relative">
-                        <img src="${formatPath(name)}" class="w-full h-full object-cover" draggable="false"
-                             onerror="this.src='https://via.placeholder.com/400x400/ffb7c5/ffffff?text=Wait+Upload'">
+                    <div class="gallery-item photo-container relative">
+                        <img src="${formatPath(name)}" draggable="false" onerror="handleImgError(this)">
                         <div class="photo-edit-overlay flex-col gap-2" onclick="triggerFilePicker('gallery_${idx}')">
                             <i data-lucide="refresh-cw" class="w-6 h-6"></i>
-                            <span class="text-xs font-bold">更換</span>
-                            ${isAdmin ? `<button onclick="event.stopPropagation(); deleteGalleryItem('${name}')" class="mt-4 bg-red-500/80 px-3 py-1 rounded-full text-[10px]">刪除</button>` : ''}
+                            <span class="text-xs font-bold">更換照片</span>
+                            ${isAdmin ? `<button onclick="event.stopPropagation(); deleteGalleryItem('${name}')" class="mt-2 bg-red-500 px-3 py-1 rounded-full text-[10px]">刪除</button>` : ''}
                         </div>
                     </div>
                 `).join('');
-                lucide.createIcons();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         }
 
-        function syncPhotos() { if (configRef) onSnapshot(configRef, (snap) => renderPhotos(snap.exists() ? snap.data() : null)); }
+        function syncPhotos() { onSnapshot(configRef, (snap) => { if(snap.exists()) renderPhotos(snap.data()); }); }
 
+        // 管理功能
+        document.getElementById('loginConfirmBtn').onclick = () => {
+            if (document.getElementById('passwordInput').value === "1234") {
+                isAdmin = true;
+                document.body.classList.add('is-admin');
+                document.getElementById('adminBadge').classList.remove('hidden');
+                document.getElementById('loginBtn').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.remove('hidden');
+                document.getElementById('addGalleryBtn').classList.remove('hidden');
+                closeLogin();
+                showToast("歡迎回來，小可愛管理員！✨");
+                renderPhotos(currentPhotoData);
+            } else { alert("密碼不正確"); }
+        };
+
+        window.handleLogout = () => {
+            isAdmin = false; document.body.classList.remove('is-admin');
+            document.getElementById('adminBadge').classList.add('hidden');
+            document.getElementById('loginBtn').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('addGalleryBtn').classList.add('hidden');
+            showToast("已登出管理模式。");
+            renderPhotos(currentPhotoData);
+        };
+
+        // 圖片操作
         window.triggerFilePicker = (target) => {
             if (!isAdmin) return;
             window.currentEditingTarget = target;
@@ -417,21 +324,25 @@
         };
 
         document.getElementById('filePicker').onchange = async (e) => {
-            const files = e.target.files;
+            const files = Array.from(e.target.files);
             if (!files.length || !currentPhotoData) return;
+            if (!auth?.currentUser) { showToast("正在重新連線雲端，請稍後..."); return; }
 
-            // 安全檢查
-            if (!auth.currentUser) {
-                showToast("尚未連線到雲端，請稍後再試。");
-                return;
-            }
+            const statusLabel = document.getElementById('uploadStatus');
+            const batchBtn = document.getElementById('batchAddBtn');
+            const originalBtnHtml = batchBtn.innerHTML;
+
+            batchBtn.disabled = true;
+            batchBtn.innerHTML = "正在處理中...";
+            statusLabel.innerText = `⏳ 正在新增 ${files.length} 張照片，請稍候...`;
 
             const newData = { ...currentPhotoData };
             const target = window.currentEditingTarget;
+
             if (target === 'hero') newData.hero = files[0].name;
             else if (target === 'about') newData.about = files[0].name;
             else if (target === 'addGallery') {
-                const names = Array.from(files).map(f => f.name);
+                const names = files.map(f => f.name);
                 newData.gallery = [...new Set([...(newData.gallery || []), ...names])];
             } else if (target.startsWith('gallery_')) {
                 const idx = parseInt(target.split('_')[1]);
@@ -440,38 +351,84 @@
             
             try { 
                 await setDoc(configRef, newData); 
-                showToast(`照片已更新！✨`); 
+                showToast(`已成功新增 ${files.length} 張照片檔名！✨`); 
+                statusLabel.innerText = "✅ 同步成功！記得將實體照片上傳 GitHub。";
             } catch (err) { 
-                console.error("Update Photo Error", err);
-                showToast("同步失敗，請檢查網路。"); 
+                showToast("同步失敗，請檢查網路連線。"); 
+                statusLabel.innerText = "❌ 同步失敗。";
+            } finally {
+                batchBtn.disabled = false;
+                batchBtn.innerHTML = originalBtnHtml;
+                e.target.value = ''; 
             }
-            e.target.value = ''; 
+        };
+
+        // 拖曳與儲存邏輯 (調整位置功能)
+        let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
+        window.enterAdjustMode = (type) => {
+            adjustState.target = type;
+            const style = currentPhotoData[`${type}Style`] || { scale: 1, x: 0, y: 0 };
+            adjustState.currentX = style.x; adjustState.currentY = style.y; adjustState.scale = style.scale;
+            document.body.classList.add('is-adjusting');
+            document.getElementById(`${type}_container`).classList.add('adjust-mode');
+            document.getElementById(`${type}_highlight`).classList.remove('hidden');
+            document.getElementById('adjustToolbar').classList.remove('hidden');
+            const slider = document.getElementById('scaleSlider');
+            slider.value = adjustState.scale;
+            slider.oninput = (ev) => { adjustState.scale = parseFloat(ev.target.value); updateTransform(); };
+            const img = document.getElementById(`img_${type}`);
+            img.style.cursor = 'move';
+            img.onmousedown = (ev) => { 
+                adjustState.isDragging = true; 
+                adjustState.startX = ev.clientX - adjustState.currentX; adjustState.startY = ev.clientY - adjustState.currentY;
+                window.onmousemove = (mv) => { 
+                    if (!adjustState.isDragging) return;
+                    adjustState.currentX = mv.clientX - adjustState.startX; adjustState.currentY = mv.clientY - adjustState.startY;
+                    updateTransform();
+                };
+                window.onmouseup = () => { adjustState.isDragging = false; window.onmousemove = null; };
+                ev.preventDefault();
+            };
+            showToast("拖曳照片，調整妳最滿意的角度！");
+        };
+
+        function updateTransform() {
+            const img = document.getElementById(`img_${adjustState.target}`);
+            if (img) img.style.transform = `translate3d(${adjustState.currentX}px, ${adjustState.currentY}px, 0) scale(${adjustState.scale})`;
+        }
+
+        window.saveVisualTransform = async () => {
+            const type = adjustState.target;
+            const newData = { ...currentPhotoData };
+            newData[`${type}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
+            try {
+                await setDoc(configRef, newData);
+                document.body.classList.remove('is-adjusting');
+                document.getElementById(`${type}_container`).classList.remove('adjust-mode');
+                document.getElementById(`${type}_highlight`).classList.add('hidden');
+                document.getElementById('adjustToolbar').classList.add('hidden');
+                showToast("完美角度已儲存！✨");
+            } catch (e) { showToast("儲存失敗"); }
         };
 
         window.deleteGalleryItem = async (fileName) => {
             if (!confirm("確定要刪除嗎？") || !auth.currentUser) return;
             const newData = { ...currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
-            try {
-                await setDoc(configRef, newData);
-                showToast("照片已移除。");
-            } catch (err) { showToast("刪除失敗"); }
+            await setDoc(configRef, newData);
         };
 
         function syncMessages() {
-            if (db) {
-                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snap) => {
-                    const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
-                    const msgs = []; snap.forEach(d => msgs.push(d.data()));
-                    msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                    const box = document.getElementById('messageBox');
-                    if (box) box.innerHTML = msgs.map(m => `
-                        <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300">
-                            <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
-                        </div>
-                    `).join('') || '<div class="text-center text-gray-400 py-4">目前尚無悄悄話</div>';
-                });
-            }
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snap) => {
+                const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
+                const msgs = []; snap.forEach(d => msgs.push(d.data()));
+                msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                document.getElementById('messageBox').innerHTML = msgs.map(m => `
+                    <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300 mb-3">
+                        <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
+                    </div>
+                `).join('') || '<div class="text-center text-gray-400 py-4">目前還沒有留言喔</div>';
+            });
         }
 
         document.getElementById('sendBtn').onclick = async () => {
@@ -486,12 +443,9 @@
 
         const showToast = (msg) => {
             const t = document.getElementById('toast');
-            if (t) {
-                t.innerText = msg; t.classList.add('show');
-                setTimeout(() => t.classList.remove('show'), 3000);
-            }
+            if (t) { t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
         };
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     </script>
 
     <script>
