@@ -16,7 +16,7 @@
         @keyframes flyUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5); opacity: 0; } }
         .glass-morphism { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
         .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fff; transition: all 0.3s ease; }
-        .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; }
+        .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; min-height: 200px; }
         .gallery-item:hover { transform: translateY(-5px); }
         .gallery-item:hover img { transform: scale(1.1); }
         .gallery-caption { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white; padding: 10px; font-size: 0.8rem; opacity: 0; transition: opacity 0.3s; text-align: center; }
@@ -46,8 +46,8 @@
         </div>
         <div class="text-center z-10 px-4">
             <div class="mb-6 inline-block p-4 rounded-full bg-white shadow-xl floating">
-                <div class="w-44 h-44 md:w-60 md:h-60 rounded-full overflow-hidden border-8 border-pink-100">
-                    <img id="img_hero" src="20250206_153614.jpg" alt="" class="w-full h-full object-cover">
+                <div class="w-44 h-44 md:w-60 md:h-60 rounded-full overflow-hidden border-8 border-pink-100 bg-pink-50">
+                    <img id="img_hero" src="20250206_153614.jpg" alt="向晴大頭照" class="w-full h-full object-cover">
                 </div>
             </div>
             <h1 class="text-5xl md:text-7xl font-bold text-pink-500 mb-4 cute-title">鄭向晴小可愛</h1>
@@ -76,8 +76,8 @@
                 </div>
             </div>
             <div class="relative">
-                <div class="rounded-3xl overflow-hidden shadow-2xl rotate-2 border-[12px] border-white">
-                    <img id="img_about" src="20250104_193151.jpg" alt="" class="w-full h-80 object-cover">
+                <div class="rounded-3xl overflow-hidden shadow-2xl rotate-2 border-[12px] border-white bg-pink-50">
+                    <img id="img_about" src="20250104_193151.jpg" alt="吃草莓的照片" class="w-full h-80 object-cover">
                 </div>
             </div>
         </div>
@@ -85,10 +85,10 @@
 
     <!-- 相簿區塊 -->
     <section id="gallery" class="py-24 bg-white/40 px-6">
-        <h2 class="text-4xl font-bold text-center text-pink-500 mb-4 cute-title">甜蜜瞬間</h2>
+        <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">甜蜜瞬間</h2>
         <p class="text-center text-gray-500 mb-12">記錄我的每一個成長小故事</p>
         <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- 這裡會由 Firebase 動態載入，以下為預設展示 -->
+            <!-- 圖片將由 JavaScript 動態載入 -->
         </div>
     </section>
 
@@ -110,12 +110,25 @@
     <!-- 雲端照片管理後台 -->
     <div id="adminContainer" class="admin-panel py-10 bg-gray-900 text-white px-6">
         <div class="max-w-4xl mx-auto">
-            <h3 class="text-xl font-bold mb-4">📸 雲端照片管理後台</h3>
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-pink-400">📸 雲端照片管理後台</h3>
+                <button onclick="resetToLocal()" class="text-xs bg-red-900/50 px-3 py-1 rounded border border-red-500 text-red-200 hover:bg-red-800">重設為初始照片</button>
+            </div>
+            
             <div class="space-y-4 text-sm">
-                <div><label class="block mb-1">大頭貼照片：</label><input id="input_hero" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300"></div>
-                <div><label class="block mb-1">關於我照片：</label><input id="input_about" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300"></div>
-                <div><label class="block mb-1">相簿照片 (每行一個名稱或網址)：</label><textarea id="input_gallery" rows="8" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300"></textarea></div>
-                <button onclick="savePhotoConfig()" class="bg-pink-500 px-6 py-2 rounded-full font-bold hover:bg-pink-600">儲存變更</button>
+                <div>
+                    <label class="block mb-1 text-gray-400">大頭貼：</label>
+                    <input id="input_hero" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300">
+                </div>
+                <div>
+                    <label class="block mb-1 text-gray-400">關於我照片：</label>
+                    <input id="input_about" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300">
+                </div>
+                <div>
+                    <label class="block mb-1 text-gray-400">相簿照片 (每行一個檔名或網址)：</label>
+                    <textarea id="input_gallery" rows="10" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300"></textarea>
+                </div>
+                <button onclick="savePhotoConfig()" class="bg-pink-500 px-8 py-3 rounded-full font-bold hover:bg-pink-600 transition shadow-lg">儲存變更至雲端</button>
             </div>
         </div>
     </div>
@@ -124,11 +137,13 @@
         <p>© 2025 鄭向晴小可愛專屬空間 ❤️ | <button onclick="toggleAdmin()" class="hover:text-pink-300">管理模式</button></p>
     </footer>
 
+    <!-- Firebase 邏輯 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Firebase 配置由環境自動帶入
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -138,24 +153,29 @@
         
         let user = null;
 
-        // 預設照片清單（包含新上傳的所有照片）
+        // 妳提供的所有照片檔名 (精確對應)
         const defaultPhotos = {
             hero: '20250206_153614.jpg',
             about: '20250104_193151.jpg',
             gallery: [
-                '20250902_181256.jpg', // 圖書館看書
-                '20251023_155406.jpg', // 攀爬架運動
-                '20250815_174653.jpg', // 彈琴
-                '20251108_081246.jpg', // 一家人吃飯
-                '20250714_111924(0).jpg', // 拉麵條有趣照片
-                '20250907_132712.jpg', // 吃豆花
-                '20251018_120229.jpg', // 與長輩合照
-                '20250112_162245.jpg', // 大豬公公
-                '20250720_143703.jpg', // 大合照
-                '20251018_151029.jpg', // 爸爸合照
-                '20250205_194430.jpg', // 自拍合照
-                '20250104_172053.jpg', // 湖畔比讚
-                '20250104_171444.jpg'  // 爸爸和向晴
+                '20250205_194430.jpg',
+                '20250129_082834.jpg',
+                '20250112_162245.jpg',
+                '20250104_172109.jpg',
+                '20250104_172053.jpg',
+                '20250104_171603.jpg',
+                '20250104_171444.jpg',
+                '20250104_171450.jpg',
+                '20250714_111924(0).jpg',
+                '20250720_143703.jpg',
+                '20250803_172158.jpg',
+                '20250815_174653.jpg',
+                '20250902_181256.jpg',
+                '20250907_132712.jpg',
+                '20251018_120229.jpg',
+                '20251018_151029.jpg',
+                '20251023_155406.jpg',
+                '20251108_081246.jpg'
             ]
         };
 
@@ -177,11 +197,24 @@
             });
         });
 
+        // 偵錯輔助：檢查圖片是否為 local 檔案並格式化路徑
+        const formatPath = (p) => {
+            if (!p) return "";
+            if (p.startsWith('http') || p.startsWith('data:')) return p;
+            // 加上 ./ 確保在 GitHub Pages 目錄正確
+            return `./${p}`;
+        };
+
         function syncPhotos() {
             onSnapshot(configRef, (snap) => {
-                const data = snap.exists() ? snap.data() : defaultPhotos;
-                document.getElementById('img_hero').src = data.hero;
-                document.getElementById('img_about').src = data.about;
+                let data = snap.exists() ? snap.data() : defaultPhotos;
+                
+                // 防呆：如果雲端資料是空的，則使用預設值
+                if (!data.hero) data = defaultPhotos;
+
+                document.getElementById('img_hero').src = formatPath(data.hero);
+                document.getElementById('img_about').src = formatPath(data.about);
+                
                 document.getElementById('input_hero').value = data.hero;
                 document.getElementById('input_about').value = data.about;
                 document.getElementById('input_gallery').value = (data.gallery || []).join('\n');
@@ -189,7 +222,9 @@
                 const grid = document.getElementById('gallery_grid');
                 grid.innerHTML = (data.gallery || []).map(url => `
                     <div class="gallery-item aspect-square shadow-sm">
-                        <img src="${url}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400?text=Wait+Photo'">
+                        <img src="${formatPath(url)}" 
+                             class="w-full h-full object-cover" 
+                             onerror="this.parentElement.style.display='none'; console.log('找不到圖片:', '${url}')">
                         <div class="gallery-caption">✨</div>
                     </div>
                 `).join('');
@@ -198,33 +233,46 @@
 
         window.savePhotoConfig = async () => {
             if (!user) return;
-            const hero = document.getElementById('input_hero').value;
-            const about = document.getElementById('input_about').value;
-            const gallery = document.getElementById('input_gallery').value.split('\n').filter(l => l.trim() !== '');
+            const hero = document.getElementById('input_hero').value.trim();
+            const about = document.getElementById('input_about').value.trim();
+            const gallery = document.getElementById('input_gallery').value.split('\n').map(l => l.trim()).filter(l => l !== '');
             try {
                 await setDoc(configRef, { hero, about, gallery });
-                alert('雲端照片設定已更新！');
-            } catch (e) { alert('更新失敗，請稍後再試。'); }
+                alert('雲端照片設定已更新！請重新整理網頁。');
+            } catch (e) { alert('儲存失敗：' + e.message); }
+        };
+
+        window.resetToLocal = async () => {
+            if (confirm("確定要重設所有照片路徑為初始狀態嗎？")) {
+                try {
+                    await deleteDoc(configRef);
+                    location.reload();
+                } catch (e) { alert("重設失敗"); }
+            }
         };
 
         function syncMessages() {
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), (snap) => {
                 const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
-                const msgs = []; snap.forEach(doc => msgs.push(doc.data()));
+                const msgs = [];
+                snap.forEach(doc => msgs.push(doc.data()));
                 msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                 document.getElementById('messageBox').innerHTML = msgs.map(m => `
                     <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300">
                         <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
                     </div>
-                `).join('') || '<div class="text-center text-gray-400 py-4">還沒有人留言喔...</div>';
+                `).join('') || '<div class="text-center text-gray-400 py-4">尚無留言</div>';
             });
         }
 
         document.getElementById('sendBtn').onclick = async () => {
             const n = document.getElementById('userName').value, c = document.getElementById('userMsg').value;
             if (!user || !n || !c) return;
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), { name: n, content: c, createdAt: serverTimestamp() });
-            document.getElementById('userName').value = ''; document.getElementById('userMsg').value = '';
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+                name: n, content: c, createdAt: serverTimestamp()
+            });
+            document.getElementById('userName').value = '';
+            document.getElementById('userMsg').value = '';
             createHearts();
         };
     </script>
