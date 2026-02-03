@@ -23,9 +23,19 @@
         .gallery-item:hover .gallery-caption { opacity: 1; }
         .admin-panel { display: none; }
         .admin-active .admin-panel { display: block; }
+        
+        /* 自定義提示框樣式 */
+        #toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #ff69b4; color: white; padding: 12px 24px; border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        #toast.show { opacity: 1; }
     </style>
 </head>
 <body class="text-gray-800">
+
+    <div id="toast">設定已更新！✨</div>
 
     <nav class="fixed w-full z-50 glass-morphism px-6 py-4 flex justify-between items-center">
         <div class="text-2xl font-bold text-pink-500">向晴 🍬</div>
@@ -88,7 +98,7 @@
         <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">甜蜜瞬間</h2>
         <p class="text-center text-gray-500 mb-12">記錄我的每一個成長小故事</p>
         <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- 圖片將由 JavaScript 動態載入 -->
+            <!-- 圖片動態載入 -->
         </div>
     </section>
 
@@ -100,9 +110,9 @@
                 <div class="text-center py-4 text-gray-400" id="loadingMsg">正在連線至雲端...</div>
             </div>
             <div class="flex flex-col space-y-4">
-                <input id="userName" type="text" placeholder="你的稱呼" class="px-5 py-3 rounded-full border border-pink-100 outline-none focus:ring-2 focus:ring-pink-200">
-                <textarea id="userMsg" rows="3" placeholder="想對向晴說什麼？" class="px-5 py-3 rounded-3xl border border-pink-100 outline-none focus:ring-2 focus:ring-pink-200"></textarea>
-                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg disabled:bg-gray-300">送出留言</button>
+                <input id="userName" type="text" placeholder="你的稱呼" class="px-5 py-3 rounded-full border border-pink-100 outline-none">
+                <textarea id="userMsg" rows="3" placeholder="想對向晴說什麼？" class="px-5 py-3 rounded-3xl border border-pink-100 outline-none"></textarea>
+                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg transition disabled:bg-pink-300">送出留言</button>
             </div>
         </div>
     </section>
@@ -117,18 +127,20 @@
             
             <div class="space-y-4 text-sm">
                 <div>
-                    <label class="block mb-1 text-gray-400">大頭貼：</label>
-                    <input id="input_hero" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300">
+                    <label class="block mb-1 text-gray-400">大頭貼照片：</label>
+                    <input id="input_hero" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300 outline-none focus:border-pink-500">
                 </div>
                 <div>
                     <label class="block mb-1 text-gray-400">關於我照片：</label>
-                    <input id="input_about" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300">
+                    <input id="input_about" type="text" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300 outline-none focus:border-pink-500">
                 </div>
                 <div>
                     <label class="block mb-1 text-gray-400">相簿照片 (每行一個檔名或網址)：</label>
-                    <textarea id="input_gallery" rows="10" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300"></textarea>
+                    <textarea id="input_gallery" rows="10" class="w-full p-2 bg-gray-800 border border-gray-700 rounded text-pink-300 outline-none focus:border-pink-500"></textarea>
                 </div>
-                <button onclick="savePhotoConfig()" class="bg-pink-500 px-8 py-3 rounded-full font-bold hover:bg-pink-600 transition shadow-lg">儲存變更至雲端</button>
+                <button id="saveAdminBtn" onclick="savePhotoConfig()" class="bg-pink-500 px-8 py-3 rounded-full font-bold hover:bg-pink-600 transition shadow-lg disabled:opacity-50">
+                    儲存變更至雲端
+                </button>
             </div>
         </div>
     </div>
@@ -137,13 +149,11 @@
         <p>© 2025 鄭向晴小可愛專屬空間 ❤️ | <button onclick="toggleAdmin()" class="hover:text-pink-300">管理模式</button></p>
     </footer>
 
-    <!-- Firebase 邏輯 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase 配置由環境自動帶入
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -153,29 +163,16 @@
         
         let user = null;
 
-        // 妳提供的所有照片檔名 (精確對應)
         const defaultPhotos = {
             hero: '20250206_153614.jpg',
             about: '20250104_193151.jpg',
             gallery: [
-                '20250205_194430.jpg',
-                '20250129_082834.jpg',
-                '20250112_162245.jpg',
-                '20250104_172109.jpg',
-                '20250104_172053.jpg',
-                '20250104_171603.jpg',
-                '20250104_171444.jpg',
-                '20250104_171450.jpg',
-                '20250714_111924(0).jpg',
-                '20250720_143703.jpg',
-                '20250803_172158.jpg',
-                '20250815_174653.jpg',
-                '20250902_181256.jpg',
-                '20250907_132712.jpg',
-                '20251018_120229.jpg',
-                '20251018_151029.jpg',
-                '20251023_155406.jpg',
-                '20251108_081246.jpg'
+                '20250205_194430.jpg', '20250129_082834.jpg', '20250112_162245.jpg',
+                '20250104_172109.jpg', '20250104_172053.jpg', '20250104_171603.jpg',
+                '20250104_171444.jpg', '20250104_171450.jpg', '20250714_111924(0).jpg',
+                '20250720_143703.jpg', '20250803_172158.jpg', '20250815_174653.jpg',
+                '20250902_181256.jpg', '20250907_132712.jpg', '20251018_120229.jpg',
+                '20251018_151029.jpg', '20251023_155406.jpg', '20251108_081246.jpg'
             ]
         };
 
@@ -197,19 +194,22 @@
             });
         });
 
-        // 偵錯輔助：檢查圖片是否為 local 檔案並格式化路徑
+        const showToast = (msg) => {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        };
+
         const formatPath = (p) => {
             if (!p) return "";
             if (p.startsWith('http') || p.startsWith('data:')) return p;
-            // 加上 ./ 確保在 GitHub Pages 目錄正確
             return `./${p}`;
         };
 
         function syncPhotos() {
             onSnapshot(configRef, (snap) => {
                 let data = snap.exists() ? snap.data() : defaultPhotos;
-                
-                // 防呆：如果雲端資料是空的，則使用預設值
                 if (!data.hero) data = defaultPhotos;
 
                 document.getElementById('img_hero').src = formatPath(data.hero);
@@ -222,9 +222,7 @@
                 const grid = document.getElementById('gallery_grid');
                 grid.innerHTML = (data.gallery || []).map(url => `
                     <div class="gallery-item aspect-square shadow-sm">
-                        <img src="${formatPath(url)}" 
-                             class="w-full h-full object-cover" 
-                             onerror="this.parentElement.style.display='none'; console.log('找不到圖片:', '${url}')">
+                        <img src="${formatPath(url)}" class="w-full h-full object-cover" onerror="this.parentElement.style.display='none';">
                         <div class="gallery-caption">✨</div>
                     </div>
                 `).join('');
@@ -233,21 +231,32 @@
 
         window.savePhotoConfig = async () => {
             if (!user) return;
+            const btn = document.getElementById('saveAdminBtn');
             const hero = document.getElementById('input_hero').value.trim();
             const about = document.getElementById('input_about').value.trim();
             const gallery = document.getElementById('input_gallery').value.split('\n').map(l => l.trim()).filter(l => l !== '');
+            
+            btn.disabled = true;
+            btn.innerText = "儲存中...";
+
             try {
                 await setDoc(configRef, { hero, about, gallery });
-                alert('雲端照片設定已更新！請重新整理網頁。');
-            } catch (e) { alert('儲存失敗：' + e.message); }
+                showToast("雲端照片設定已更新！✨");
+            } catch (e) { 
+                showToast("儲存失敗，請檢查權限。");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "儲存變更至雲端";
+            }
         };
 
         window.resetToLocal = async () => {
-            if (confirm("確定要重設所有照片路徑為初始狀態嗎？")) {
+            if (confirm("確定要重設為初始照片嗎？")) {
                 try {
                     await deleteDoc(configRef);
+                    showToast("已重設為初始設定。");
                     location.reload();
-                } catch (e) { alert("重設失敗"); }
+                } catch (e) { showToast("重設失敗"); }
             }
         };
 
@@ -266,14 +275,20 @@
         }
 
         document.getElementById('sendBtn').onclick = async () => {
+            const btn = document.getElementById('sendBtn');
             const n = document.getElementById('userName').value, c = document.getElementById('userMsg').value;
             if (!user || !n || !c) return;
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
-                name: n, content: c, createdAt: serverTimestamp()
-            });
-            document.getElementById('userName').value = '';
-            document.getElementById('userMsg').value = '';
-            createHearts();
+            btn.disabled = true;
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+                    name: n, content: c, createdAt: serverTimestamp()
+                });
+                document.getElementById('userName').value = '';
+                document.getElementById('userMsg').value = '';
+                createHearts();
+            } finally {
+                btn.disabled = false;
+            }
         };
     </script>
 
