@@ -8,6 +8,46 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
     <!-- 使用 Lucide 圖示 -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- 基礎 UI 腳本：確保 onerror 觸發時函數已存在 -->
+    <script>
+        window.isAdmin = false;
+
+        function openLogin() { 
+            const modal = document.getElementById('loginModal');
+            if (modal) modal.classList.remove('hidden'); 
+        }
+
+        function closeLogin() { 
+            const modal = document.getElementById('loginModal');
+            if (modal) {
+                modal.classList.add('hidden'); 
+                const input = document.getElementById('passwordInput');
+                if (input) input.value = ''; 
+            }
+        }
+
+        function handleImgError(img) {
+            img.style.display = 'none';
+            const container = img.parentElement;
+            if (container && !container.querySelector('.loading-placeholder')) {
+                const p = document.createElement('div');
+                p.className = 'loading-placeholder';
+                p.innerText = '等待上傳 GitHub';
+                container.appendChild(p);
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            if (t) { 
+                t.innerText = msg; 
+                t.classList.add('show'); 
+                setTimeout(() => t.classList.remove('show'), 3000); 
+            }
+        }
+    </script>
+
     <style>
         :root { --primary-pink: #ffb7c5; --soft-purple: #e2d1f9; }
         body { font-family: 'Noto Sans TC', sans-serif; background: linear-gradient(135deg, #fff5f7 0%, #f0f4ff 100%); scroll-behavior: smooth; overflow-x: hidden; }
@@ -18,7 +58,6 @@
         @keyframes flyUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5); opacity: 0; } }
         .glass-morphism { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
         
-        /* 管理遮罩樣式 */
         .photo-edit-overlay {
             position: absolute; inset: 0; background: rgba(0,0,0,0.5);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -27,7 +66,6 @@
         }
         body.is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; pointer-events: auto; }
         
-        /* 調整模式激活時：讓框框外變半透明，且不裁切 */
         body.is-adjusting .photo-edit-overlay { display: none !important; }
         body.is-adjusting .photo-container.adjust-mode { z-index: 100; }
         body.is-adjusting .adjust-mode .overflow-hidden { overflow: visible !important; }
@@ -41,9 +79,7 @@
 
         .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fce7f3; transition: all 0.3s ease; min-height: 200px; display: flex; align-items: center; justify-content: center; }
         .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; }
-        .gallery-item:hover { transform: translateY(-5px); }
         
-        /* 調整模式控制浮窗 */
         .adjust-controls {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             display: flex; align-items: center; gap: 15px; background: white;
@@ -81,7 +117,7 @@
     <!-- 調整工具列 -->
     <div id="adjustToolbar" class="adjust-controls hidden">
         <div class="flex flex-col items-center">
-            <span class="text-[10px] text-pink-500 font-bold mb-1">縮放比例</span>
+            <span class="text-[10px] text-pink-500 font-bold mb-1 uppercase">縮放比例</span>
             <input type="range" id="scaleSlider" min="0.5" max="5" step="0.01" value="1" class="w-40 accent-pink-500">
         </div>
         <div class="h-8 w-[1px] bg-gray-200 mx-2"></div>
@@ -156,7 +192,7 @@
     <section id="gallery" class="py-24 bg-white/40 px-6">
         <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">甜蜜瞬間</h2>
         <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- 這裡會動態長出格數 -->
+            <!-- 格數動態生成 -->
         </div>
         <div id="addGalleryBtn" class="hidden mt-12 text-center">
             <button id="batchAddBtn" onclick="triggerFilePicker('addGallery')" class="bg-pink-500 text-white px-10 py-4 rounded-2xl font-bold shadow-lg hover:bg-pink-600 transition flex items-center mx-auto">
@@ -183,7 +219,7 @@
 
     <footer class="py-12 text-center text-gray-400 text-sm">
         <div class="mb-2 space-x-2">
-            <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">正在偵測雲端狀態...</span>
+            <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">偵測中...</span>
         </div>
         <p>© 2025 鄭向晴小可愛 ❤️ | 
             <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline decoration-dotted">管理員登入</button>
@@ -191,21 +227,7 @@
         </p>
     </footer>
 
-    <script>
-        function openLogin() { document.getElementById('loginModal').classList.remove('hidden'); }
-        function closeLogin() { document.getElementById('loginModal').classList.add('hidden'); document.getElementById('passwordInput').value = ''; }
-        function handleImgError(img) {
-            img.style.display = 'none';
-            const container = img.parentElement;
-            if (!container.querySelector('.loading-placeholder')) {
-                const p = document.createElement('div');
-                p.className = 'loading-placeholder';
-                p.innerText = '等待上傳 GitHub';
-                container.appendChild(p);
-            }
-        }
-    </script>
-
+    <!-- Firebase 模組 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -214,7 +236,6 @@
         const GITHUB_URL = "https://shalukuc-debug.github.io/shana/";
         let db, auth, appId, configRef;
         let currentPhotoData = null;
-        let isAdmin = false;
 
         const formatPath = (p) => {
             if (!p) return "";
@@ -222,13 +243,13 @@
             return !window.location.hostname.includes('github.io') ? GITHUB_URL + p : p;
         };
 
+        // 核心：回寫目前的預覽狀態
         const defaultPhotos = {
             hero: '4.jpg', heroStyle: { scale: 1, x: 0, y: 0 },
             about: '20.jpg', aboutStyle: { scale: 1, x: 0, y: 0 },
-            gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg']
+            gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg', '20.jpg']
         };
 
-        // Firebase 初始化與身分連線
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const app = initializeApp(firebaseConfig);
         auth = getAuth(app);
@@ -240,22 +261,22 @@
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
-            } catch (e) { console.error("Auth Failed", e); }
+                return auth.currentUser;
+            } catch (e) { return null; }
         }
 
         onAuthStateChanged(auth, (u) => { 
             if (u) { 
-                document.getElementById('cloudStatus').innerText = "雲端連線成功 ✅";
+                document.getElementById('cloudStatus').innerText = "雲端同步已就緒 ✅";
                 syncPhotos(); syncMessages(); 
-            } 
+            }
         });
 
         initAuth();
 
-        // 渲染照片牆：徹底修復數量不對的問題
         function renderPhotos(data) {
             const finalData = data || defaultPhotos;
-            currentPhotoData = JSON.parse(JSON.stringify(finalData)); // 深拷貝防止污染
+            currentPhotoData = JSON.parse(JSON.stringify(finalData)); 
             
             const applyStyle = (id, style) => {
                 const img = document.getElementById(id);
@@ -267,29 +288,22 @@
             };
 
             const hImg = document.getElementById('img_hero');
-            if (hImg) { 
-                hImg.style.display = 'block'; hImg.src = formatPath(currentPhotoData.hero); 
-                applyStyle('img_hero', currentPhotoData.heroStyle); 
-            }
+            if (hImg) { hImg.style.display = 'block'; hImg.src = formatPath(currentPhotoData.hero); applyStyle('img_hero', currentPhotoData.heroStyle); }
+            
             const aImg = document.getElementById('img_about');
-            if (aImg) { 
-                aImg.style.display = 'block'; aImg.src = formatPath(currentPhotoData.about); 
-                applyStyle('img_about', currentPhotoData.aboutStyle); 
-            }
+            if (aImg) { aImg.style.display = 'block'; aImg.src = formatPath(currentPhotoData.about); applyStyle('img_about', currentPhotoData.aboutStyle); }
 
             const grid = document.getElementById('gallery_grid');
             if (grid) {
-                // 自動偵測 gallery 長度並重新生成
                 const galleryList = currentPhotoData.gallery || [];
                 const uniqueGallery = [...new Set(galleryList)]; 
-                
                 grid.innerHTML = uniqueGallery.map((name, idx) => `
                     <div class="gallery-item photo-container relative">
                         <img src="${formatPath(name)}" draggable="false" onerror="handleImgError(this)">
                         <div class="photo-edit-overlay flex-col gap-2" onclick="triggerFilePicker('gallery_${idx}')">
                             <i data-lucide="refresh-cw" class="w-6 h-6"></i>
                             <span class="text-xs font-bold">更換照片</span>
-                            ${isAdmin ? `<button onclick="event.stopPropagation(); deleteGalleryItem('${name}')" class="mt-2 bg-red-500 px-3 py-1 rounded-full text-[10px]">刪除</button>` : ''}
+                            ${window.isAdmin ? `<button onclick="event.stopPropagation(); window.deleteGalleryItem('${name}')" class="mt-2 bg-red-500 px-3 py-1 rounded-full text-[10px]">刪除</button>` : ''}
                         </div>
                     </div>
                 `).join('');
@@ -297,67 +311,35 @@
             }
         }
 
-        function syncPhotos() { onSnapshot(configRef, (snap) => { if(snap.exists()) renderPhotos(snap.data()); else renderPhotos(defaultPhotos); }, (err) => console.log("Listen error:", err)); }
+        window.refreshUIAfterLogin = () => renderPhotos(currentPhotoData);
 
-        // 登入邏輯
-        function performLogin() {
-            if (document.getElementById('passwordInput').value === "1234") {
-                isAdmin = true;
-                document.body.classList.add('is-admin');
-                document.getElementById('adminBadge').classList.remove('hidden');
-                document.getElementById('loginBtn').classList.add('hidden');
-                document.getElementById('logoutBtn').classList.remove('hidden');
-                document.getElementById('addGalleryBtn').classList.remove('hidden');
-                closeLogin();
-                showToast("管理員妳好！照片數量現在會自動增加囉 ✨");
-                renderPhotos(currentPhotoData);
-            } else { alert("密碼錯誤"); }
+        function syncPhotos() { 
+            onSnapshot(configRef, (snap) => { if(snap.exists()) renderPhotos(snap.data()); else renderPhotos(defaultPhotos); }); 
         }
 
-        document.getElementById('loginConfirmBtn').onclick = performLogin;
-        window.handleLogout = () => {
-            isAdmin = false; document.body.classList.remove('is-admin');
-            document.getElementById('adminBadge').classList.add('hidden');
-            document.getElementById('loginBtn').classList.remove('hidden');
-            document.getElementById('logoutBtn').classList.add('hidden');
-            document.getElementById('addGalleryBtn').classList.add('hidden');
-            showToast("已登出管理模式。");
-            renderPhotos(currentPhotoData);
-        };
-
-        // --- 核心寫入邏輯：自動補足權限並儲存 ---
         async function secureUpdate(data) {
-            if (!auth.currentUser) {
-                await initAuth(); // 嘗試重新連線
-            }
-            if (auth.currentUser) {
-                return await setDoc(configRef, data);
-            } else {
-                throw new Error("Cloud unauthenticated");
-            }
+            if (!auth.currentUser) await initAuth();
+            if (auth.currentUser) return await setDoc(configRef, data);
+            else throw new Error("Cloud unauthenticated");
         }
 
         window.triggerFilePicker = (target) => {
-            if (!isAdmin) return;
+            if (!window.isAdmin) return;
             window.currentEditingTarget = target;
-            document.getElementById('filePicker').click();
+            const fp = document.getElementById('filePicker');
+            if (fp) fp.click();
         };
 
         document.getElementById('filePicker').onchange = async (e) => {
             const files = Array.from(e.target.files);
             if (!files.length || !currentPhotoData) return;
-            
             const statusLabel = document.getElementById('uploadStatus');
             const batchBtn = document.getElementById('batchAddBtn');
-            const originalBtnHtml = batchBtn.innerHTML;
-
-            batchBtn.disabled = true;
-            batchBtn.innerHTML = "同步中...";
-            statusLabel.innerText = `⏳ 正在新增 ${files.length} 張照片，格數將自動增加...`;
-
+            const originalBtnHtml = batchBtn ? batchBtn.innerHTML : "";
+            if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "同步中..."; }
+            if (statusLabel) statusLabel.innerText = `⏳ 同步中...`;
             const newData = { ...currentPhotoData };
             const target = window.currentEditingTarget;
-
             if (target === 'hero') newData.hero = files[0].name;
             else if (target === 'about') newData.about = files[0].name;
             else if (target === 'addGallery') {
@@ -365,24 +347,15 @@
                 newData.gallery = [...new Set([...(newData.gallery || []), ...names])];
             } else if (target.startsWith('gallery_')) {
                 const idx = parseInt(target.split('_')[1]);
-                newData.gallery[idx] = files[0].name;
+                if (newData.gallery) newData.gallery[idx] = files[0].name;
             }
-            
             try { 
                 await secureUpdate(newData); 
-                showToast(`照片已更新！格數已自動增加 ✨`); 
-                statusLabel.innerText = "✅ 雲端同步成功！";
-            } catch (err) { 
-                showToast("同步失敗，請重新整理網頁"); 
-                statusLabel.innerText = "❌ 連線不穩定。";
-            } finally {
-                batchBtn.disabled = false;
-                batchBtn.innerHTML = originalBtnHtml;
-                e.target.value = ''; 
-            }
+                if (statusLabel) statusLabel.innerText = "✅ 同步成功！";
+            } catch (err) { alert("同步失敗"); } 
+            finally { if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } e.target.value = ''; }
         };
 
-        // 調整位置邏輯
         let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
         window.enterAdjustMode = (type) => {
             adjustState.target = type;
@@ -393,22 +366,22 @@
             document.getElementById(`${type}_highlight`).classList.remove('hidden');
             document.getElementById('adjustToolbar').classList.remove('hidden');
             const slider = document.getElementById('scaleSlider');
-            slider.value = adjustState.scale;
-            slider.oninput = (ev) => { adjustState.scale = parseFloat(ev.target.value); updateTransform(); };
+            if (slider) { slider.value = adjustState.scale; slider.oninput = (ev) => { adjustState.scale = parseFloat(ev.target.value); updateTransform(); }; }
             const img = document.getElementById(`img_${type}`);
-            img.style.cursor = 'move';
-            img.onmousedown = (ev) => { 
-                adjustState.isDragging = true; 
-                adjustState.startX = ev.clientX - adjustState.currentX; adjustState.startY = ev.clientY - adjustState.currentY;
-                window.onmousemove = (mv) => { 
-                    if (!adjustState.isDragging) return;
-                    adjustState.currentX = mv.clientX - adjustState.startX; adjustState.currentY = mv.clientY - adjustState.startY;
-                    updateTransform();
+            if (img) {
+                img.style.cursor = 'move';
+                img.onmousedown = (ev) => { 
+                    adjustState.isDragging = true; 
+                    adjustState.startX = ev.clientX - adjustState.currentX; adjustState.startY = ev.clientY - adjustState.currentY;
+                    window.onmousemove = (mv) => { 
+                        if (!adjustState.isDragging) return;
+                        adjustState.currentX = mv.clientX - adjustState.startX; adjustState.currentY = mv.clientY - adjustState.startY;
+                        updateTransform();
+                    };
+                    window.onmouseup = () => { adjustState.isDragging = false; window.onmousemove = null; };
+                    ev.preventDefault();
                 };
-                window.onmouseup = () => { adjustState.isDragging = false; window.onmousemove = null; };
-                ev.preventDefault();
-            };
-            showToast("拖曳照片決定範圍，完成後點擊儲存");
+            }
         };
 
         function updateTransform() {
@@ -417,24 +390,20 @@
         }
 
         window.saveVisualTransform = async () => {
-            const type = adjustState.target;
             const saveBtn = document.getElementById('saveTransformBtn');
-            const originalText = saveBtn.innerText;
-            
-            saveBtn.innerText = "同步中...";
-            const newData = { ...currentPhotoData };
-            newData[`${type}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
-            
+            const originalText = saveBtn ? saveBtn.innerText : "";
+            if (saveBtn) saveBtn.innerText = "同步中...";
+            const newData = JSON.parse(JSON.stringify(currentPhotoData));
+            newData[`${adjustState.target}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
             try {
                 await secureUpdate(newData);
                 document.body.classList.remove('is-adjusting');
                 document.querySelectorAll('.adjust-mode').forEach(el => el.classList.remove('adjust-mode'));
                 document.querySelectorAll('.adjust-highlight').forEach(el => el.classList.add('hidden'));
                 document.getElementById('adjustToolbar').classList.add('hidden');
-                showToast("完美角度已同步！✨");
-            } catch (e) { showToast("儲存失敗，系統已自動重新連線，請再點一次。"); } finally {
-                saveBtn.innerText = originalText;
-            }
+                showToast("完美角度已儲存！✨");
+            } catch (e) { showToast("儲存失敗，請重試"); } 
+            finally { if (saveBtn) saveBtn.innerText = originalText; }
         };
 
         window.deleteGalleryItem = async (fileName) => {
@@ -442,7 +411,6 @@
             const newData = { ...currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
             await secureUpdate(newData);
-            showToast("已從雲端移除。");
         };
 
         function syncMessages() {
@@ -452,10 +420,10 @@
                 msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                 const box = document.getElementById('messageBox');
                 if (box) box.innerHTML = msgs.map(m => `
-                    <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300 mb-3">
+                    <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300 mb-3 text-left">
                         <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
                     </div>
-                `).join('') || '<div class="text-center text-gray-400 py-4">還沒人留言呢</div>';
+                `).join('') || '<div class="text-center text-gray-400 py-4">目前還沒有留言喔</div>';
             });
         }
 
@@ -466,15 +434,11 @@
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), { name: n, content: c, createdAt: serverTimestamp() });
                 document.getElementById('userName').value = ''; document.getElementById('userMsg').value = '';
                 createHearts();
-            } catch (e) { showToast("留言失敗"); }
-        };
-
-        const showToast = (msg) => {
-            const t = document.getElementById('toast');
-            if (t) { t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+            } catch (e) { }
         };
     </script>
 
+    <!-- UI 裝飾腳本 -->
     <script>
         function createHearts(e) {
             const x = e ? e.clientX : window.innerWidth/2, y = e ? e.clientY : window.innerHeight/2;
@@ -488,6 +452,7 @@
                 setTimeout(() => h.remove(), 2000);
             }
         }
+        window.addEventListener('load', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
     </script>
 </body>
 </html>
