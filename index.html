@@ -6,13 +6,18 @@
     <title>鄭向晴小可愛的個人空間</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+    <!-- 使用 Lucide 圖示 -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- 基礎 UI 腳本：確保 onerror 與登入邏輯在最頂層 -->
     <script>
-        // --- 基礎全域 UI 控制 ---
         window.isAdmin = false;
         window.currentEditingTarget = null;
-        window.currentPhotoData = null; 
+        window.currentPhotoData = {
+            hero: '4.jpg', heroStyle: { scale: 1, x: 0, y: 0 },
+            about: '20.jpg', aboutStyle: { scale: 1, x: 0, y: 0 },
+            gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg', '20.jpg']
+        }; 
 
         function openLogin() { 
             const modal = document.getElementById('loginModal');
@@ -26,7 +31,7 @@
             if (input) input.value = ''; 
         }
 
-        // 全域登入邏輯：最優先執行
+        // 全域登入邏輯
         window.performLogin = function() {
             const pwdInput = document.getElementById('passwordInput');
             if (pwdInput && pwdInput.value === "1234") {
@@ -38,14 +43,12 @@
                 document.getElementById('addGalleryBtn')?.classList.remove('hidden');
                 
                 closeLogin();
-                showToast("管理員已登入！✨");
+                showToast("管理員模式已啟動！✨");
                 
-                // 觸發 UI 更新
-                if (window.renderPhotos && window.currentPhotoData) {
-                    window.renderPhotos(window.currentPhotoData);
-                }
+                // 立即重新渲染以顯示管理按鈕
+                if (window.renderPhotos) window.renderPhotos(window.currentPhotoData);
             } else {
-                alert("密碼不正確，請再試一次。");
+                alert("密碼不正確。");
             }
         };
 
@@ -56,10 +59,8 @@
             document.getElementById('loginBtn')?.classList.remove('hidden');
             document.getElementById('logoutBtn')?.classList.add('hidden');
             document.getElementById('addGalleryBtn')?.classList.add('hidden');
-            showToast("已登出管理模式。");
-            if (window.renderPhotos && window.currentPhotoData) {
-                window.renderPhotos(window.currentPhotoData);
-            }
+            showToast("已登出。");
+            if (window.renderPhotos) window.renderPhotos(window.currentPhotoData);
         };
 
         window.triggerFilePicker = (target) => {
@@ -98,22 +99,26 @@
         .heart-particle { position: absolute; pointer-events: none; animation: flyUp 2s linear forwards; z-index: 100; }
         @keyframes flyUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5); opacity: 0; } }
         .glass-morphism { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        
         .photo-edit-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; cursor: pointer; color: white; z-index: 20; border-radius: inherit; gap: 10px; }
         body.is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; }
+        
         body.is-adjusting .photo-edit-overlay { display: none !important; }
         body.is-adjusting .photo-container.adjust-mode { z-index: 100; }
         body.is-adjusting .adjust-mode .overflow-hidden { overflow: visible !important; }
         body.is-adjusting .adjust-mode img { opacity: 0.5; filter: grayscale(0.2); }
+        
         .adjust-highlight { position: absolute; inset: 0; border: 4px solid #ff69b4; box-shadow: 0 0 0 9999px rgba(0,0,0,0.4); z-index: 10; pointer-events: none; border-radius: inherit; }
         .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fce7f3; transition: all 0.3s ease; min-height: 200px; display: flex; align-items: center; justify-content: center; }
         .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; }
+        
         .adjust-controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 15px; background: white; padding: 12px 25px; border-radius: 100px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 500; border: 2px solid #ffb7c5; }
         #toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #ff69b4; color: white; padding: 12px 24px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         #toast.show { opacity: 1; }
         .modal-bg { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
         .loading-placeholder { color: #ffb7c5; font-size: 11px; font-weight: bold; text-align: center; }
         
-        /* 選取器改用偏移量隱藏，增加連動穩定性 */
+        /* 選取器改用偏移量隱藏，增加穩定性 */
         #filePicker { position: absolute; left: -9999px; top: -9999px; opacity: 0; }
     </style>
 </head>
@@ -128,7 +133,7 @@
             <input id="passwordInput" type="password" placeholder="請輸入密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300 text-center" onkeypress="if(event.key==='Enter') performLogin()">
             <div class="flex space-x-2">
                 <button onclick="closeLogin()" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-500 font-bold">取消</button>
-                <button onclick="performLogin()" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500 transition">登入</button>
+                <button onclick="performLogin()" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500 transition active:scale-95">登入</button>
             </div>
             <p class="text-[10px] text-gray-400 mt-4 italic">密碼：1234</p>
         </div>
@@ -137,7 +142,7 @@
     <!-- 調整工具列 -->
     <div id="adjustToolbar" class="adjust-controls hidden">
         <div class="flex flex-col items-center">
-            <span class="text-[10px] text-pink-500 font-bold mb-1">縮放比例</span>
+            <span class="text-[10px] text-pink-500 font-bold mb-1 uppercase">縮放比例</span>
             <input type="range" id="scaleSlider" min="0.5" max="5" step="0.01" value="1" class="w-40 accent-pink-500">
         </div>
         <div class="h-8 w-[1px] bg-gray-200 mx-2"></div>
@@ -235,7 +240,7 @@
     <footer class="py-12 text-center text-gray-400 text-sm">
         <div class="mb-2 space-x-2">
             <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">同步中...</span>
-            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V8.Final</span>
+            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V9.Final</span>
         </div>
         <p>© 2025 鄭向晴小可愛 ❤️ | <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline">管理登入</button><button onclick="window.handleLogout()" id="logoutBtn" class="hidden hover:text-red-400">登出</button></p>
     </footer>
@@ -276,16 +281,7 @@
             } catch (e) { return null; }
         }
 
-        onAuthStateChanged(auth, (u) => { 
-            if (u) { 
-                document.getElementById('cloudStatus').innerText = "雲端同步已就緒 ✅";
-                syncPhotos(); syncMessages(); 
-            }
-        });
-
-        initAuth();
-
-        // 渲染照片牆：徹底修復格數不對的問題
+        // 核心渲染邏輯：加強穩健性
         window.renderPhotos = (data) => {
             const finalData = data || defaultPhotos;
             window.currentPhotoData = JSON.parse(JSON.stringify(finalData)); 
@@ -300,9 +296,17 @@
             };
 
             const hImg = document.getElementById('img_hero');
-            if (hImg) { hImg.style.display = 'block'; hImg.src = formatPath(window.currentPhotoData.hero); applyStyle('img_hero', window.currentPhotoData.heroStyle); }
+            if (hImg) { 
+                hImg.style.display = 'block'; 
+                hImg.src = formatPath(window.currentPhotoData.hero); 
+                applyStyle('img_hero', window.currentPhotoData.heroStyle); 
+            }
             const aImg = document.getElementById('img_about');
-            if (aImg) { aImg.style.display = 'block'; aImg.src = formatPath(window.currentPhotoData.about); applyStyle('img_about', window.currentPhotoData.aboutStyle); }
+            if (aImg) { 
+                aImg.style.display = 'block'; 
+                aImg.src = formatPath(window.currentPhotoData.about); 
+                applyStyle('img_about', window.currentPhotoData.aboutStyle); 
+            }
 
             const grid = document.getElementById('gallery_grid');
             if (grid) {
@@ -322,10 +326,27 @@
             }
         };
 
+        // 初始化就先跑一次預設值，避免空白
+        window.renderPhotos(defaultPhotos);
+
+        onAuthStateChanged(auth, (u) => { 
+            if (u) { 
+                document.getElementById('cloudStatus').innerText = "雲端同步已就緒 ✅";
+                syncPhotos(); syncMessages(); 
+            }
+        });
+
+        initAuth();
+
         function syncPhotos() { 
             onSnapshot(configRef, (snap) => { 
-                if(snap.exists()) window.renderPhotos(snap.data()); 
-                else { setDoc(configRef, defaultPhotos); window.renderPhotos(defaultPhotos); }
+                if(snap.exists()) {
+                    window.renderPhotos(snap.data()); 
+                } else {
+                    // 若雲端沒資料，強制建立並渲染預設
+                    secureUpdate(defaultPhotos);
+                    window.renderPhotos(defaultPhotos);
+                }
             }); 
         }
 
@@ -340,15 +361,15 @@
             const files = Array.from(e.target.files);
             if (!files.length) return;
             
-            // 如果雲端尚未有資料，使用預設值墊底
+            // 確保資料基底存在
             if (!window.currentPhotoData) window.currentPhotoData = JSON.parse(JSON.stringify(defaultPhotos));
 
             const statusLabel = document.getElementById('uploadStatus');
             const batchBtn = document.getElementById('batchAddBtn');
             const originalBtnHtml = batchBtn?.innerHTML || "";
             
-            if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "同步中..."; }
-            if (statusLabel) statusLabel.innerText = `⏳ 正在寫入雲端...`;
+            if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "正在寫入雲端..."; }
+            if (statusLabel) statusLabel.innerText = `⏳ 同步中，請稍候...`;
 
             const newData = { ...window.currentPhotoData };
             const target = window.currentEditingTarget;
@@ -366,10 +387,10 @@
             try { 
                 await secureUpdate(newData); 
                 showToast("同步成功！記得上傳圖檔至 GitHub ✨");
-                if (statusLabel) statusLabel.innerText = "✅ 已更新！請務必傳圖檔至 GitHub。";
+                if (statusLabel) statusLabel.innerText = "✅ 檔名已更新！請傳圖檔至 GitHub。";
             } catch (err) { 
                 console.error(err);
-                alert("同步失敗，請檢查網路連線後重試。"); 
+                alert("同步失敗，請檢查網路。"); 
             } finally { 
                 if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } 
                 e.target.value = ''; 
@@ -427,11 +448,11 @@
         };
 
         window.deleteGalleryItem = async (fileName) => {
-            if (!confirm("確定刪除這張照片嗎？")) return;
+            if (!confirm("確定要刪除這張照片嗎？")) return;
             const newData = { ...window.currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
             await secureUpdate(newData);
-            showToast("照片已移除。");
+            showToast("已從雲端移除。");
         };
 
         function syncMessages() {
