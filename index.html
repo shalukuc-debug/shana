@@ -9,15 +9,65 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <script>
-        // 全域基礎 UI 控制
+        // --- 基礎全域 UI 控制 ---
         window.isAdmin = false;
         window.currentEditingTarget = null;
+        window.currentPhotoData = null; 
 
-        function openLogin() { document.getElementById('loginModal').classList.remove('hidden'); }
-        function closeLogin() { 
-            document.getElementById('loginModal').classList.add('hidden'); 
-            document.getElementById('passwordInput').value = ''; 
+        function openLogin() { 
+            const modal = document.getElementById('loginModal');
+            if (modal) modal.classList.remove('hidden'); 
         }
+        
+        function closeLogin() { 
+            const modal = document.getElementById('loginModal');
+            if (modal) modal.classList.add('hidden'); 
+            const input = document.getElementById('passwordInput');
+            if (input) input.value = ''; 
+        }
+
+        // 全域登入邏輯：最優先執行
+        window.performLogin = function() {
+            const pwdInput = document.getElementById('passwordInput');
+            if (pwdInput && pwdInput.value === "1234") {
+                window.isAdmin = true;
+                document.body.classList.add('is-admin');
+                document.getElementById('adminBadge')?.classList.remove('hidden');
+                document.getElementById('loginBtn')?.classList.add('hidden');
+                document.getElementById('logoutBtn')?.classList.remove('hidden');
+                document.getElementById('addGalleryBtn')?.classList.remove('hidden');
+                
+                closeLogin();
+                showToast("管理員已登入！✨");
+                
+                // 觸發 UI 更新
+                if (window.renderPhotos && window.currentPhotoData) {
+                    window.renderPhotos(window.currentPhotoData);
+                }
+            } else {
+                alert("密碼不正確，請再試一次。");
+            }
+        };
+
+        window.handleLogout = function() {
+            window.isAdmin = false; 
+            document.body.classList.remove('is-admin');
+            document.getElementById('adminBadge')?.classList.add('hidden');
+            document.getElementById('loginBtn')?.classList.remove('hidden');
+            document.getElementById('logoutBtn')?.classList.add('hidden');
+            document.getElementById('addGalleryBtn')?.classList.add('hidden');
+            showToast("已登出管理模式。");
+            if (window.renderPhotos && window.currentPhotoData) {
+                window.renderPhotos(window.currentPhotoData);
+            }
+        };
+
+        window.triggerFilePicker = (target) => {
+            if (!window.isAdmin) { showToast("請先登入管理員模式！🍬"); return; }
+            window.currentEditingTarget = target;
+            const fp = document.getElementById('filePicker');
+            if (fp) fp.click();
+        };
 
         function handleImgError(img) {
             img.style.display = 'none';
@@ -37,13 +87,6 @@
                 setTimeout(() => t.classList.remove('show'), 3000); 
             }
         }
-
-        // 啟動檔案選取器
-        window.triggerFilePicker = (target) => {
-            if (!window.isAdmin) { showToast("請先登入管理員模式！🍬"); return; }
-            window.currentEditingTarget = target;
-            document.getElementById('filePicker').click();
-        };
     </script>
 
     <style>
@@ -69,7 +112,9 @@
         #toast.show { opacity: 1; }
         .modal-bg { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
         .loading-placeholder { color: #ffb7c5; font-size: 11px; font-weight: bold; text-align: center; }
-        #filePicker { display: none; }
+        
+        /* 選取器改用偏移量隱藏，增加連動穩定性 */
+        #filePicker { position: absolute; left: -9999px; top: -9999px; opacity: 0; }
     </style>
 </head>
 <body class="text-gray-800">
@@ -80,10 +125,10 @@
     <div id="loginModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-bg">
         <div class="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl text-center">
             <h3 class="text-2xl font-bold text-pink-500 mb-6 cute-title">管理員登入</h3>
-            <input id="passwordInput" type="password" placeholder="請輸入密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300 text-center">
+            <input id="passwordInput" type="password" placeholder="請輸入密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300 text-center" onkeypress="if(event.key==='Enter') performLogin()">
             <div class="flex space-x-2">
                 <button onclick="closeLogin()" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-500 font-bold">取消</button>
-                <button id="loginConfirmBtn" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500 transition">登入</button>
+                <button onclick="performLogin()" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500 transition">登入</button>
             </div>
             <p class="text-[10px] text-gray-400 mt-4 italic">密碼：1234</p>
         </div>
@@ -92,11 +137,11 @@
     <!-- 調整工具列 -->
     <div id="adjustToolbar" class="adjust-controls hidden">
         <div class="flex flex-col items-center">
-            <span class="text-[10px] text-pink-500 font-bold mb-1">縮放</span>
+            <span class="text-[10px] text-pink-500 font-bold mb-1">縮放比例</span>
             <input type="range" id="scaleSlider" min="0.5" max="5" step="0.01" value="1" class="w-40 accent-pink-500">
         </div>
         <div class="h-8 w-[1px] bg-gray-200 mx-2"></div>
-        <button id="saveTransformBtn" class="bg-pink-500 text-white px-8 py-2 rounded-full font-bold shadow-lg active:scale-95 transition">儲存角度</button>
+        <button id="saveTransformBtn" class="bg-pink-500 text-white px-8 py-2 rounded-full font-bold shadow-lg active:scale-95 transition">完成並儲存</button>
     </div>
 
     <!-- 隱藏檔案選取器 -->
@@ -190,11 +235,12 @@
     <footer class="py-12 text-center text-gray-400 text-sm">
         <div class="mb-2 space-x-2">
             <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">同步中...</span>
-            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V7.Final</span>
+            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V8.Final</span>
         </div>
         <p>© 2025 鄭向晴小可愛 ❤️ | <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline">管理登入</button><button onclick="window.handleLogout()" id="logoutBtn" class="hidden hover:text-red-400">登出</button></p>
     </footer>
 
+    <!-- Firebase 模組區 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -239,6 +285,7 @@
 
         initAuth();
 
+        // 渲染照片牆：徹底修復格數不對的問題
         window.renderPhotos = (data) => {
             const finalData = data || defaultPhotos;
             window.currentPhotoData = JSON.parse(JSON.stringify(finalData)); 
@@ -288,42 +335,20 @@
             throw new Error("Unauthenticated");
         }
 
-        // 登入處理
-        document.getElementById('loginConfirmBtn').onclick = () => {
-            const pwdInput = document.getElementById('passwordInput');
-            if (pwdInput && pwdInput.value === "1234") {
-                window.isAdmin = true;
-                document.body.classList.add('is-admin');
-                document.getElementById('adminBadge').classList.remove('hidden');
-                document.getElementById('loginBtn').classList.add('hidden');
-                document.getElementById('logoutBtn').classList.remove('hidden');
-                document.getElementById('addGalleryBtn').classList.remove('hidden');
-                closeLogin();
-                showToast("管理員已登入！✨");
-                window.renderPhotos(window.currentPhotoData);
-            } else { alert("密碼錯誤"); }
-        };
-
-        window.handleLogout = () => {
-            window.isAdmin = false; document.body.classList.remove('is-admin');
-            document.getElementById('adminBadge').classList.add('hidden');
-            document.getElementById('loginBtn').classList.remove('hidden');
-            document.getElementById('logoutBtn').classList.add('hidden');
-            document.getElementById('addGalleryBtn').classList.add('hidden');
-            window.renderPhotos(window.currentPhotoData);
-        };
-
         // 選取檔案後的處理核心
         document.getElementById('filePicker').addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
-            if (!files.length || !window.currentPhotoData) return;
+            if (!files.length) return;
             
+            // 如果雲端尚未有資料，使用預設值墊底
+            if (!window.currentPhotoData) window.currentPhotoData = JSON.parse(JSON.stringify(defaultPhotos));
+
             const statusLabel = document.getElementById('uploadStatus');
             const batchBtn = document.getElementById('batchAddBtn');
             const originalBtnHtml = batchBtn?.innerHTML || "";
             
-            if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "寫入中..."; }
-            if (statusLabel) statusLabel.innerText = `⏳ 同步 ${files.length} 張檔名...`;
+            if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "同步中..."; }
+            if (statusLabel) statusLabel.innerText = `⏳ 正在寫入雲端...`;
 
             const newData = { ...window.currentPhotoData };
             const target = window.currentEditingTarget;
@@ -341,14 +366,20 @@
             try { 
                 await secureUpdate(newData); 
                 showToast("同步成功！記得上傳圖檔至 GitHub ✨");
-                if (statusLabel) statusLabel.innerText = "✅ 已更新！請傳圖檔至 GitHub。";
-            } catch (err) { alert("同步失敗，請再點一次"); } 
-            finally { if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } e.target.value = ''; }
+                if (statusLabel) statusLabel.innerText = "✅ 已更新！請務必傳圖檔至 GitHub。";
+            } catch (err) { 
+                console.error(err);
+                alert("同步失敗，請檢查網路連線後重試。"); 
+            } finally { 
+                if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } 
+                e.target.value = ''; 
+            }
         });
 
         // 調整位置功能
         let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
         const initAdjust = (type) => {
+            if (!window.currentPhotoData) return;
             adjustState.target = type;
             const style = window.currentPhotoData[`${type}Style`] || { scale: 1, x: 0, y: 0 };
             adjustState.currentX = style.x; adjustState.currentY = style.y; adjustState.scale = style.scale;
@@ -396,10 +427,11 @@
         };
 
         window.deleteGalleryItem = async (fileName) => {
-            if (!confirm("確定刪除？")) return;
+            if (!confirm("確定刪除這張照片嗎？")) return;
             const newData = { ...window.currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
             await secureUpdate(newData);
+            showToast("照片已移除。");
         };
 
         function syncMessages() {
@@ -407,7 +439,8 @@
                 const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
                 const msgs = []; snap.forEach(d => msgs.push(d.data()));
                 msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                document.getElementById('messageBox').innerHTML = msgs.map(m => `
+                const box = document.getElementById('messageBox');
+                if (box) box.innerHTML = msgs.map(m => `
                     <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300 mb-3 text-left">
                         <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
                     </div>
