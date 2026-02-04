@@ -13,6 +13,7 @@
     <script>
         window.isAdmin = false;
         window.currentEditingTarget = null;
+        window.currentPhotoData = null; // 存放目前雲端的照片狀態
 
         function openLogin() { 
             const modal = document.getElementById('loginModal');
@@ -41,7 +42,7 @@
             }
         }
 
-        // 登入驗證邏輯
+        // 登入驗證邏輯：放在全域確保點擊必有反應
         function performLogin() {
             const pwdInput = document.getElementById('passwordInput');
             if (pwdInput && pwdInput.value === "1234") {
@@ -54,9 +55,9 @@
                 document.getElementById('addGalleryBtn')?.classList.remove('hidden');
                 
                 closeLogin();
-                showToast("管理員已登入！現在點擊照片即可更換 ✨");
+                showToast("管理員已登入！✨");
                 
-                // 通知 Firebase 模組重新渲染 UI
+                // 通知 Firebase 模組重新渲染 UI，讓管理按鈕出現
                 if (window.renderPhotos && window.currentPhotoData) {
                     window.renderPhotos(window.currentPhotoData);
                 }
@@ -84,7 +85,7 @@
             if (container && !container.querySelector('.loading-placeholder')) {
                 const p = document.createElement('div');
                 p.className = 'loading-placeholder';
-                p.innerText = '等待照片上傳 GitHub';
+                p.innerText = '等待上傳 GitHub';
                 container.appendChild(p);
             }
         }
@@ -116,7 +117,6 @@
         @keyframes flyUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5); opacity: 0; } }
         .glass-morphism { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
         
-        /* 管理遮罩：僅在 is-admin 時生效 */
         .photo-edit-overlay {
             position: absolute; inset: 0; background: rgba(0,0,0,0.5);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -125,7 +125,6 @@
         }
         body.is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; pointer-events: auto; }
         
-        /* 調整模式 */
         body.is-adjusting .photo-edit-overlay { display: none !important; }
         body.is-adjusting .photo-container.adjust-mode { z-index: 100; }
         body.is-adjusting .adjust-mode .overflow-hidden { overflow: visible !important; }
@@ -156,7 +155,7 @@
         .modal-bg { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
         .loading-placeholder { color: #ffb7c5; font-size: 11px; font-weight: bold; text-align: center; }
         
-        /* 檔案選取器樣式優化 */
+        /* 檔案選取器樣式優化：完全隱藏但不影響觸發 */
         #filePicker { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
     </style>
 </head>
@@ -187,7 +186,7 @@
         <button id="saveTransformBtn" onclick="saveVisualTransform()" class="bg-pink-500 text-white px-8 py-2 rounded-full font-bold shadow-lg hover:bg-pink-600 transition active:scale-95">完成並儲存</button>
     </div>
 
-    <!-- 檔案選取器 -->
+    <!-- 隱藏檔案選取器 -->
     <input type="file" id="filePicker" accept="image/*" multiple>
 
     <nav class="fixed w-full z-50 glass-morphism px-6 py-4 flex justify-between items-center">
@@ -284,7 +283,7 @@
     <footer class="py-12 text-center text-gray-400 text-sm">
         <div class="mb-2 space-x-2">
             <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">正在偵測雲端狀態...</span>
-            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V5</span>
+            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V6</span>
         </div>
         <p>© 2025 鄭向晴小可愛 ❤️ | 
             <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline decoration-dotted">管理員登入</button>
@@ -313,6 +312,7 @@
             gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg', '20.jpg']
         };
 
+        // 初始化 Firebase
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const app = initializeApp(firebaseConfig);
         auth = getAuth(app);
@@ -328,7 +328,14 @@
             } catch (e) { return null; }
         }
 
-        onAuthStateChanged(auth, (u) => { 
+        // 核心寫入邏輯
+        async function secureUpdate(data) {
+            if (!auth.currentUser) await initAuth();
+            if (auth.currentUser) return await setDoc(configRef, data);
+            else throw new Error("Cloud unauthenticated");
+        }
+
+        onAuthStateChanged(auth, async (u) => { 
             if (u) { 
                 document.getElementById('cloudStatus').innerText = "雲端同步已就緒 ✅";
                 syncPhotos(); syncMessages(); 
@@ -375,26 +382,33 @@
         };
 
         function syncPhotos() { 
-            onSnapshot(configRef, (snap) => { if(snap.exists()) window.renderPhotos(snap.data()); else window.renderPhotos(defaultPhotos); }); 
+            onSnapshot(configRef, (snap) => { 
+                if(snap.exists()) {
+                    window.renderPhotos(snap.data()); 
+                } else {
+                    // 如果雲端沒資料，強制初始化
+                    secureUpdate(defaultPhotos);
+                    window.renderPhotos(defaultPhotos);
+                }
+            }, (err) => console.log("Cloud Listen Error:", err)); 
         }
 
-        async function secureUpdate(data) {
-            if (!auth.currentUser) await initAuth();
-            if (auth.currentUser) return await setDoc(configRef, data);
-            else throw new Error("Cloud unauthenticated");
-        }
-
+        // 檔案選取後處理
         const filePicker = document.getElementById('filePicker');
         if (filePicker) {
             filePicker.onchange = async (e) => {
                 const files = Array.from(e.target.files);
-                if (!files.length || !window.currentPhotoData) return;
+                if (!files.length) return;
+                
+                // 如果目前沒資料，先用預設值墊底
+                if (!window.currentPhotoData) window.currentPhotoData = { ...defaultPhotos };
+
                 const statusLabel = document.getElementById('uploadStatus');
                 const batchBtn = document.getElementById('batchAddBtn');
                 const originalBtnHtml = batchBtn ? batchBtn.innerHTML : "";
                 
-                if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "同步中..."; }
-                if (statusLabel) statusLabel.innerText = `⏳ 同步中...`;
+                if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "寫入雲端中..."; }
+                if (statusLabel) statusLabel.innerText = `⏳ 正在同步 ${files.length} 張照片...`;
                 
                 const newData = { ...window.currentPhotoData };
                 const target = window.currentEditingTarget;
@@ -413,8 +427,12 @@
                     await secureUpdate(newData); 
                     if (statusLabel) statusLabel.innerText = "✅ 同步成功！記得上傳圖檔至 GitHub";
                     showToast("同步成功！✨");
-                } catch (err) { alert("同步失敗，請檢查權限"); } 
-                finally { if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } e.target.value = ''; }
+                } catch (err) { 
+                    alert("同步失敗，請檢查網路連線"); 
+                } finally { 
+                    if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } 
+                    e.target.value = ''; 
+                }
             };
         }
 
@@ -465,7 +483,7 @@
                 document.getElementById('adjustToolbar').classList.add('hidden');
                 showToast("完美角度已儲存！✨");
             } catch (e) { showToast("儲存失敗，請重試"); } 
-            finally { if (saveBtn) saveBtn.innerText = originalText; }
+            finally { if (saveBtn) { saveBtn.innerText = originalText; } }
         };
 
         window.deleteGalleryItem = async (fileName) => {
@@ -473,6 +491,7 @@
             const newData = { ...window.currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
             await secureUpdate(newData);
+            showToast("已從雲端移除");
         };
 
         function syncMessages() {
