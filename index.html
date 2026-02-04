@@ -6,77 +6,17 @@
     <title>鄭向晴小可愛的個人空間</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
-    <!-- 使用 Lucide 圖示 -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- 基礎 UI 腳本：確保按鈕與登入邏輯即時生效 -->
     <script>
+        // 全域基礎 UI 控制
         window.isAdmin = false;
         window.currentEditingTarget = null;
-        window.currentPhotoData = null; // 存放目前雲端的照片狀態
 
-        function openLogin() { 
-            const modal = document.getElementById('loginModal');
-            if (modal) modal.classList.remove('hidden'); 
-        }
-
+        function openLogin() { document.getElementById('loginModal').classList.remove('hidden'); }
         function closeLogin() { 
-            const modal = document.getElementById('loginModal');
-            if (modal) {
-                modal.classList.add('hidden'); 
-                const input = document.getElementById('passwordInput');
-                if (input) input.value = ''; 
-            }
-        }
-
-        // 全域觸發檔案管理員：確保 100% 響應點擊
-        function triggerFilePicker(target) {
-            if (!window.isAdmin) {
-                showToast("請先登入管理員模式喔！🍬");
-                return;
-            }
-            window.currentEditingTarget = target;
-            const fp = document.getElementById('filePicker');
-            if (fp) {
-                fp.click(); // 直接觸發 Windows 檔案管理員
-            }
-        }
-
-        // 登入驗證邏輯：放在全域確保點擊必有反應
-        function performLogin() {
-            const pwdInput = document.getElementById('passwordInput');
-            if (pwdInput && pwdInput.value === "1234") {
-                window.isAdmin = true;
-                document.body.classList.add('is-admin');
-                
-                document.getElementById('adminBadge')?.classList.remove('hidden');
-                document.getElementById('loginBtn')?.classList.add('hidden');
-                document.getElementById('logoutBtn')?.classList.remove('hidden');
-                document.getElementById('addGalleryBtn')?.classList.remove('hidden');
-                
-                closeLogin();
-                showToast("管理員已登入！✨");
-                
-                // 通知 Firebase 模組重新渲染 UI，讓管理按鈕出現
-                if (window.renderPhotos && window.currentPhotoData) {
-                    window.renderPhotos(window.currentPhotoData);
-                }
-            } else {
-                alert("密碼不正確，請再試一次。");
-            }
-        }
-
-        function handleLogout() {
-            window.isAdmin = false; 
-            document.body.classList.remove('is-admin');
-            document.getElementById('adminBadge')?.classList.add('hidden');
-            document.getElementById('loginBtn')?.classList.remove('hidden');
-            document.getElementById('logoutBtn')?.classList.add('hidden');
-            document.getElementById('addGalleryBtn')?.classList.add('hidden');
-            showToast("已登出管理模式。");
-            if (window.renderPhotos && window.currentPhotoData) {
-                window.renderPhotos(window.currentPhotoData);
-            }
+            document.getElementById('loginModal').classList.add('hidden'); 
+            document.getElementById('passwordInput').value = ''; 
         }
 
         function handleImgError(img) {
@@ -93,18 +33,17 @@
         function showToast(msg) {
             const t = document.getElementById('toast');
             if (t) { 
-                t.innerText = msg; 
-                t.classList.add('show'); 
+                t.innerText = msg; t.classList.add('show'); 
                 setTimeout(() => t.classList.remove('show'), 3000); 
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const confirmBtn = document.getElementById('loginConfirmBtn');
-            if (confirmBtn) confirmBtn.onclick = performLogin;
-            const pwdInp = document.getElementById('passwordInput');
-            if (pwdInp) pwdInp.onkeypress = (e) => { if (e.key === 'Enter') performLogin(); };
-        });
+        // 啟動檔案選取器
+        window.triggerFilePicker = (target) => {
+            if (!window.isAdmin) { showToast("請先登入管理員模式！🍬"); return; }
+            window.currentEditingTarget = target;
+            document.getElementById('filePicker').click();
+        };
     </script>
 
     <style>
@@ -116,47 +55,21 @@
         .heart-particle { position: absolute; pointer-events: none; animation: flyUp 2s linear forwards; z-index: 100; }
         @keyframes flyUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5); opacity: 0; } }
         .glass-morphism { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
-        
-        .photo-edit-overlay {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.5);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            opacity: 0; transition: opacity 0.3s; cursor: pointer; color: white;
-            z-index: 20; border-radius: inherit; pointer-events: none; gap: 10px;
-        }
-        body.is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; pointer-events: auto; }
-        
+        .photo-edit-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; cursor: pointer; color: white; z-index: 20; border-radius: inherit; gap: 10px; }
+        body.is-admin .photo-container:hover .photo-edit-overlay { opacity: 1; }
         body.is-adjusting .photo-edit-overlay { display: none !important; }
         body.is-adjusting .photo-container.adjust-mode { z-index: 100; }
         body.is-adjusting .adjust-mode .overflow-hidden { overflow: visible !important; }
         body.is-adjusting .adjust-mode img { opacity: 0.5; filter: grayscale(0.2); }
-        
-        .adjust-highlight {
-            position: absolute; inset: 0; border: 4px solid #ff69b4; 
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.4); z-index: 10; pointer-events: none;
-            border-radius: inherit;
-        }
-
+        .adjust-highlight { position: absolute; inset: 0; border: 4px solid #ff69b4; box-shadow: 0 0 0 9999px rgba(0,0,0,0.4); z-index: 10; pointer-events: none; border-radius: inherit; }
         .gallery-item { overflow: hidden; position: relative; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(255, 183, 197, 0.3); background: #fce7f3; transition: all 0.3s ease; min-height: 200px; display: flex; align-items: center; justify-content: center; }
         .gallery-item img { transition: transform 0.5s ease; width: 100%; height: 100%; object-fit: cover; }
-        
-        .adjust-controls {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            display: flex; align-items: center; gap: 15px; background: white;
-            padding: 12px 25px; border-radius: 100px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            z-index: 500; border: 2px solid #ffb7c5;
-        }
-
-        #toast {
-            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
-            background: #ff69b4; color: white; padding: 12px 24px; border-radius: 50px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none;
-        }
+        .adjust-controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 15px; background: white; padding: 12px 25px; border-radius: 100px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 500; border: 2px solid #ffb7c5; }
+        #toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #ff69b4; color: white; padding: 12px 24px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         #toast.show { opacity: 1; }
         .modal-bg { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
         .loading-placeholder { color: #ffb7c5; font-size: 11px; font-weight: bold; text-align: center; }
-        
-        /* 檔案選取器樣式優化：完全隱藏但不影響觸發 */
-        #filePicker { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+        #filePicker { display: none; }
     </style>
 </head>
 <body class="text-gray-800">
@@ -166,24 +79,24 @@
     <!-- 登入彈窗 -->
     <div id="loginModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-bg">
         <div class="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl text-center">
-            <h3 class="text-2xl font-bold text-pink-500 mb-6 text-center">管理員登入</h3>
+            <h3 class="text-2xl font-bold text-pink-500 mb-6 cute-title">管理員登入</h3>
             <input id="passwordInput" type="password" placeholder="請輸入密碼" class="w-full px-5 py-3 rounded-full border border-pink-100 mb-4 outline-none focus:ring-2 focus:ring-pink-300 text-center">
             <div class="flex space-x-2">
                 <button onclick="closeLogin()" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-500 font-bold">取消</button>
-                <button id="loginConfirmBtn" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500 transition active:scale-95">登入</button>
+                <button id="loginConfirmBtn" class="flex-1 py-3 rounded-full bg-pink-400 text-white font-bold shadow-lg hover:bg-pink-500 transition">登入</button>
             </div>
-            <p class="text-[10px] text-gray-400 mt-4 italic">預設密碼為 1234</p>
+            <p class="text-[10px] text-gray-400 mt-4 italic">密碼：1234</p>
         </div>
     </div>
 
     <!-- 調整工具列 -->
     <div id="adjustToolbar" class="adjust-controls hidden">
         <div class="flex flex-col items-center">
-            <span class="text-[10px] text-pink-500 font-bold mb-1 uppercase">縮放比例</span>
+            <span class="text-[10px] text-pink-500 font-bold mb-1">縮放</span>
             <input type="range" id="scaleSlider" min="0.5" max="5" step="0.01" value="1" class="w-40 accent-pink-500">
         </div>
         <div class="h-8 w-[1px] bg-gray-200 mx-2"></div>
-        <button id="saveTransformBtn" onclick="saveVisualTransform()" class="bg-pink-500 text-white px-8 py-2 rounded-full font-bold shadow-lg hover:bg-pink-600 transition active:scale-95">完成並儲存</button>
+        <button id="saveTransformBtn" class="bg-pink-500 text-white px-8 py-2 rounded-full font-bold shadow-lg active:scale-95 transition">儲存角度</button>
     </div>
 
     <!-- 隱藏檔案選取器 -->
@@ -197,9 +110,7 @@
             <a href="#gallery" class="hover:text-pink-400 transition">甜蜜瞬間</a>
             <a href="#guestbook" class="hover:text-pink-400 transition">悄悄話</a>
         </div>
-        <div id="adminBadge" class="hidden bg-pink-100 text-pink-500 px-3 py-1 rounded-full text-xs font-bold animate-pulse border border-pink-200">
-            管理員模式中
-        </div>
+        <div id="adminBadge" class="hidden bg-pink-100 text-pink-500 px-3 py-1 rounded-full text-xs font-bold animate-pulse border border-pink-200">管理員模式</div>
     </nav>
 
     <!-- 首頁 -->
@@ -212,14 +123,12 @@
                 </div>
                 <div class="photo-edit-overlay">
                     <button onclick="triggerFilePicker('hero')" class="bg-white/20 hover:bg-white/40 px-4 py-2 rounded-full text-xs font-bold mb-2">更換照片</button>
-                    <button onclick="enterAdjustMode('hero')" class="bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-full text-xs font-bold shadow-md">調整位置</button>
+                    <button id="hero_adjust_btn" class="bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-full text-xs font-bold shadow-md">調整位置</button>
                 </div>
             </div>
             <h1 class="text-5xl md:text-7xl font-bold text-pink-500 mb-4 cute-title">鄭向晴小可愛</h1>
             <p class="text-lg md:text-xl text-gray-500 mb-8">收集世間所有的溫柔與可愛 ✨</p>
-            <button onclick="createHearts(event)" class="bg-pink-400 hover:bg-pink-500 text-white px-10 py-4 rounded-full shadow-lg transition transform hover:scale-105 active:scale-95 text-lg font-bold">
-                送我愛心 💖
-            </button>
+            <button onclick="createHearts(event)" class="bg-pink-400 hover:bg-pink-500 text-white px-10 py-4 rounded-full shadow-lg transition transform hover:scale-105 active:scale-95 text-lg font-bold">送我愛心 💖</button>
         </div>
     </section>
 
@@ -229,7 +138,7 @@
         <div class="grid md:grid-cols-2 gap-12 items-center">
             <div class="glass-morphism p-10 rounded-3xl shadow-sm leading-relaxed text-gray-700 text-center md:text-left">
                 <p class="text-xl mb-6 font-medium">嗨！我是向晴，大家公認的小可愛。我喜歡看書、彈琴，也喜歡和家人到處去冒險吃美食！</p>
-                <div class="flex justify-center md:justify-start space-x-4">
+                <div class="flex space-x-4">
                     <div class="bg-white/80 p-4 rounded-2xl shadow-sm border border-pink-50 flex-1 text-center">
                         <span class="block text-3xl">🍓</span><span class="text-sm font-bold text-pink-400">草莓派</span>
                     </div>
@@ -245,7 +154,7 @@
                 </div>
                 <div class="photo-edit-overlay rotate-2">
                     <button onclick="triggerFilePicker('about')" class="bg-white/20 hover:bg-white/40 px-4 py-2 rounded-full text-xs font-bold mb-2">更換照片</button>
-                    <button onclick="enterAdjustMode('about')" class="bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-full text-xs font-bold shadow-md">調整位置</button>
+                    <button id="about_adjust_btn" class="bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-full text-xs font-bold shadow-md">調整位置</button>
                 </div>
             </div>
         </div>
@@ -254,9 +163,7 @@
     <!-- 相簿 -->
     <section id="gallery" class="py-24 bg-white/40 px-6">
         <h2 class="text-4xl font-bold text-center text-pink-400 mb-12 cute-title">甜蜜瞬間</h2>
-        <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- 格數動態生成 -->
-        </div>
+        <div id="gallery_grid" class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         <div id="addGalleryBtn" class="hidden mt-12 text-center">
             <button id="batchAddBtn" onclick="triggerFilePicker('addGallery')" class="bg-pink-500 text-white px-10 py-4 rounded-2xl font-bold shadow-lg hover:bg-pink-600 transition flex items-center mx-auto">
                 <i data-lucide="plus-circle" class="mr-2"></i> 一次選取多張照片新增
@@ -275,23 +182,19 @@
             <div class="flex flex-col space-y-4">
                 <input id="userName" type="text" placeholder="你的稱呼" class="px-5 py-3 rounded-full border border-pink-100 outline-none">
                 <textarea id="userMsg" rows="3" placeholder="想對向晴說什麼？" class="px-5 py-3 rounded-3xl border border-pink-100 outline-none"></textarea>
-                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg transition">送出留言</button>
+                <button id="sendBtn" class="w-full bg-pink-400 text-white font-bold py-4 rounded-full hover:bg-pink-500 shadow-lg">送出留言</button>
             </div>
         </div>
     </section>
 
     <footer class="py-12 text-center text-gray-400 text-sm">
         <div class="mb-2 space-x-2">
-            <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">正在偵測雲端狀態...</span>
-            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V6</span>
+            <span id="cloudStatus" class="text-[10px] text-gray-300 italic tracking-widest uppercase font-bold">同步中...</span>
+            <span class="text-[10px] text-pink-300 border border-pink-100 px-2 py-0.5 rounded-full">版本: 2026.02.04.V7.Final</span>
         </div>
-        <p>© 2025 鄭向晴小可愛 ❤️ | 
-            <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline decoration-dotted">管理員登入</button>
-            <button onclick="handleLogout()" id="logoutBtn" class="hidden hover:text-red-400">登出管理</button>
-        </p>
+        <p>© 2025 鄭向晴小可愛 ❤️ | <button onclick="openLogin()" id="loginBtn" class="hover:text-pink-300 underline">管理登入</button><button onclick="window.handleLogout()" id="logoutBtn" class="hidden hover:text-red-400">登出</button></p>
     </footer>
 
-    <!-- Firebase 模組 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -312,7 +215,6 @@
             gallery: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg', '20.jpg']
         };
 
-        // 初始化 Firebase
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const app = initializeApp(firebaseConfig);
         auth = getAuth(app);
@@ -328,14 +230,7 @@
             } catch (e) { return null; }
         }
 
-        // 核心寫入邏輯
-        async function secureUpdate(data) {
-            if (!auth.currentUser) await initAuth();
-            if (auth.currentUser) return await setDoc(configRef, data);
-            else throw new Error("Cloud unauthenticated");
-        }
-
-        onAuthStateChanged(auth, async (u) => { 
+        onAuthStateChanged(auth, (u) => { 
             if (u) { 
                 document.getElementById('cloudStatus').innerText = "雲端同步已就緒 ✅";
                 syncPhotos(); syncMessages(); 
@@ -344,7 +239,7 @@
 
         initAuth();
 
-        window.renderPhotos = function(data) {
+        window.renderPhotos = (data) => {
             const finalData = data || defaultPhotos;
             window.currentPhotoData = JSON.parse(JSON.stringify(finalData)); 
             
@@ -359,7 +254,6 @@
 
             const hImg = document.getElementById('img_hero');
             if (hImg) { hImg.style.display = 'block'; hImg.src = formatPath(window.currentPhotoData.hero); applyStyle('img_hero', window.currentPhotoData.heroStyle); }
-            
             const aImg = document.getElementById('img_about');
             if (aImg) { aImg.style.display = 'block'; aImg.src = formatPath(window.currentPhotoData.about); applyStyle('img_about', window.currentPhotoData.aboutStyle); }
 
@@ -383,61 +277,78 @@
 
         function syncPhotos() { 
             onSnapshot(configRef, (snap) => { 
-                if(snap.exists()) {
-                    window.renderPhotos(snap.data()); 
-                } else {
-                    // 如果雲端沒資料，強制初始化
-                    secureUpdate(defaultPhotos);
-                    window.renderPhotos(defaultPhotos);
-                }
-            }, (err) => console.log("Cloud Listen Error:", err)); 
+                if(snap.exists()) window.renderPhotos(snap.data()); 
+                else { setDoc(configRef, defaultPhotos); window.renderPhotos(defaultPhotos); }
+            }); 
         }
 
-        // 檔案選取後處理
-        const filePicker = document.getElementById('filePicker');
-        if (filePicker) {
-            filePicker.onchange = async (e) => {
-                const files = Array.from(e.target.files);
-                if (!files.length) return;
-                
-                // 如果目前沒資料，先用預設值墊底
-                if (!window.currentPhotoData) window.currentPhotoData = { ...defaultPhotos };
-
-                const statusLabel = document.getElementById('uploadStatus');
-                const batchBtn = document.getElementById('batchAddBtn');
-                const originalBtnHtml = batchBtn ? batchBtn.innerHTML : "";
-                
-                if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "寫入雲端中..."; }
-                if (statusLabel) statusLabel.innerText = `⏳ 正在同步 ${files.length} 張照片...`;
-                
-                const newData = { ...window.currentPhotoData };
-                const target = window.currentEditingTarget;
-                
-                if (target === 'hero') newData.hero = files[0].name;
-                else if (target === 'about') newData.about = files[0].name;
-                else if (target === 'addGallery') {
-                    const names = files.map(f => f.name);
-                    newData.gallery = [...new Set([...(newData.gallery || []), ...names])];
-                } else if (target.startsWith('gallery_')) {
-                    const idx = parseInt(target.split('_')[1]);
-                    if (newData.gallery) newData.gallery[idx] = files[0].name;
-                }
-                
-                try { 
-                    await secureUpdate(newData); 
-                    if (statusLabel) statusLabel.innerText = "✅ 同步成功！記得上傳圖檔至 GitHub";
-                    showToast("同步成功！✨");
-                } catch (err) { 
-                    alert("同步失敗，請檢查網路連線"); 
-                } finally { 
-                    if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } 
-                    e.target.value = ''; 
-                }
-            };
+        async function secureUpdate(data) {
+            if (!auth.currentUser) await initAuth();
+            if (auth.currentUser) return await setDoc(configRef, data);
+            throw new Error("Unauthenticated");
         }
 
+        // 登入處理
+        document.getElementById('loginConfirmBtn').onclick = () => {
+            const pwdInput = document.getElementById('passwordInput');
+            if (pwdInput && pwdInput.value === "1234") {
+                window.isAdmin = true;
+                document.body.classList.add('is-admin');
+                document.getElementById('adminBadge').classList.remove('hidden');
+                document.getElementById('loginBtn').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.remove('hidden');
+                document.getElementById('addGalleryBtn').classList.remove('hidden');
+                closeLogin();
+                showToast("管理員已登入！✨");
+                window.renderPhotos(window.currentPhotoData);
+            } else { alert("密碼錯誤"); }
+        };
+
+        window.handleLogout = () => {
+            window.isAdmin = false; document.body.classList.remove('is-admin');
+            document.getElementById('adminBadge').classList.add('hidden');
+            document.getElementById('loginBtn').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('addGalleryBtn').classList.add('hidden');
+            window.renderPhotos(window.currentPhotoData);
+        };
+
+        // 選取檔案後的處理核心
+        document.getElementById('filePicker').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (!files.length || !window.currentPhotoData) return;
+            
+            const statusLabel = document.getElementById('uploadStatus');
+            const batchBtn = document.getElementById('batchAddBtn');
+            const originalBtnHtml = batchBtn?.innerHTML || "";
+            
+            if (batchBtn) { batchBtn.disabled = true; batchBtn.innerHTML = "寫入中..."; }
+            if (statusLabel) statusLabel.innerText = `⏳ 同步 ${files.length} 張檔名...`;
+
+            const newData = { ...window.currentPhotoData };
+            const target = window.currentEditingTarget;
+
+            if (target === 'hero') newData.hero = files[0].name;
+            else if (target === 'about') newData.about = files[0].name;
+            else if (target === 'addGallery') {
+                const names = files.map(f => f.name);
+                newData.gallery = [...new Set([...(newData.gallery || []), ...names])];
+            } else if (target.startsWith('gallery_')) {
+                const idx = parseInt(target.split('_')[1]);
+                if (newData.gallery) newData.gallery[idx] = files[0].name;
+            }
+
+            try { 
+                await secureUpdate(newData); 
+                showToast("同步成功！記得上傳圖檔至 GitHub ✨");
+                if (statusLabel) statusLabel.innerText = "✅ 已更新！請傳圖檔至 GitHub。";
+            } catch (err) { alert("同步失敗，請再點一次"); } 
+            finally { if (batchBtn) { batchBtn.disabled = false; batchBtn.innerHTML = originalBtnHtml; } e.target.value = ''; }
+        });
+
+        // 調整位置功能
         let adjustState = { target: null, isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, scale: 1 };
-        window.enterAdjustMode = (type) => {
+        const initAdjust = (type) => {
             adjustState.target = type;
             const style = window.currentPhotoData[`${type}Style`] || { scale: 1, x: 0, y: 0 };
             adjustState.currentX = style.x; adjustState.currentY = style.y; adjustState.scale = style.scale;
@@ -446,33 +357,32 @@
             document.getElementById(`${type}_highlight`).classList.remove('hidden');
             document.getElementById('adjustToolbar').classList.remove('hidden');
             const slider = document.getElementById('scaleSlider');
-            if (slider) { slider.value = adjustState.scale; slider.oninput = (ev) => { adjustState.scale = parseFloat(ev.target.value); updateTransform(); }; }
+            slider.value = adjustState.scale;
+            slider.oninput = (ev) => { adjustState.scale = parseFloat(ev.target.value); updateTransform(); };
             const img = document.getElementById(`img_${type}`);
-            if (img) {
-                img.style.cursor = 'move';
-                img.onmousedown = (ev) => { 
-                    adjustState.isDragging = true; 
-                    adjustState.startX = ev.clientX - adjustState.currentX; adjustState.startY = ev.clientY - adjustState.currentY;
-                    window.onmousemove = (mv) => { 
-                        if (!adjustState.isDragging) return;
-                        adjustState.currentX = mv.clientX - adjustState.startX; adjustState.currentY = mv.clientY - adjustState.startY;
-                        updateTransform();
-                    };
-                    window.onmouseup = () => { adjustState.isDragging = false; window.onmousemove = null; };
-                    ev.preventDefault();
+            img.onmousedown = (ev) => { 
+                adjustState.isDragging = true; 
+                adjustState.startX = ev.clientX - adjustState.currentX; adjustState.startY = ev.clientY - adjustState.currentY;
+                window.onmousemove = (mv) => { 
+                    if (!adjustState.isDragging) return;
+                    adjustState.currentX = mv.clientX - adjustState.startX; adjustState.currentY = mv.clientY - adjustState.startY;
+                    updateTransform();
                 };
-            }
+                window.onmouseup = () => { adjustState.isDragging = false; window.onmousemove = null; };
+                ev.preventDefault();
+            };
         };
+        document.getElementById('hero_adjust_btn').onclick = () => initAdjust('hero');
+        document.getElementById('about_adjust_btn').onclick = () => initAdjust('about');
 
         function updateTransform() {
             const img = document.getElementById(`img_${adjustState.target}`);
             if (img) img.style.transform = `translate3d(${adjustState.currentX}px, ${adjustState.currentY}px, 0) scale(${adjustState.scale})`;
         }
 
-        window.saveVisualTransform = async () => {
-            const saveBtn = document.getElementById('saveTransformBtn');
-            const originalText = saveBtn ? saveBtn.innerText : "";
-            if (saveBtn) saveBtn.innerText = "同步中...";
+        document.getElementById('saveTransformBtn').onclick = async () => {
+            const btn = document.getElementById('saveTransformBtn');
+            const originalText = btn.innerText; btn.innerText = "同步中...";
             const newData = JSON.parse(JSON.stringify(window.currentPhotoData));
             newData[`${adjustState.target}Style`] = { scale: adjustState.scale, x: adjustState.currentX, y: adjustState.currentY };
             try {
@@ -482,16 +392,14 @@
                 document.querySelectorAll('.adjust-highlight').forEach(el => el.classList.add('hidden'));
                 document.getElementById('adjustToolbar').classList.add('hidden');
                 showToast("完美角度已儲存！✨");
-            } catch (e) { showToast("儲存失敗，請重試"); } 
-            finally { if (saveBtn) { saveBtn.innerText = originalText; } }
+            } catch (e) { showToast("連線失敗，請重試"); } finally { btn.innerText = originalText; }
         };
 
         window.deleteGalleryItem = async (fileName) => {
-            if (!confirm("確定要刪除這張照片嗎？")) return;
+            if (!confirm("確定刪除？")) return;
             const newData = { ...window.currentPhotoData };
             newData.gallery = newData.gallery.filter(name => name !== fileName);
             await secureUpdate(newData);
-            showToast("已從雲端移除");
         };
 
         function syncMessages() {
@@ -499,8 +407,7 @@
                 const loading = document.getElementById('loadingMsg'); if (loading) loading.remove();
                 const msgs = []; snap.forEach(d => msgs.push(d.data()));
                 msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                const box = document.getElementById('messageBox');
-                if (box) box.innerHTML = msgs.map(m => `
+                document.getElementById('messageBox').innerHTML = msgs.map(m => `
                     <div class="bg-white/90 p-4 rounded-2xl shadow-sm border-l-4 border-pink-300 mb-3 text-left">
                         <span class="font-bold text-pink-500">${m.name || '訪客'}:</span> ${m.content}
                     </div>
@@ -519,7 +426,6 @@
         };
     </script>
 
-    <!-- UI 裝飾腳本 -->
     <script>
         function createHearts(e) {
             const x = e ? e.clientX : window.innerWidth/2, y = e ? e.clientY : window.innerHeight/2;
@@ -533,7 +439,6 @@
                 setTimeout(() => h.remove(), 2000);
             }
         }
-        window.addEventListener('load', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
     </script>
 </body>
 </html>
